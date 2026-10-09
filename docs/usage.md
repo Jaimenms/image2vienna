@@ -3,8 +3,13 @@
 ## Requirements
 
 - Python 3.11 to 3.13 and `uv`.
-- [Ollama](https://ollama.com) running locally with a vision model:
-  `ollama pull qwen2.5vl:7b` (6 GB; `qwen2.5vl:3b` is 3 GB and faster).
+- A vision model, one of two:
+  - **light**: nothing to install; `--describer light` downloads SmolVLM-256M (about
+    400 MB) on first use and runs it through transformers on CPU or GPU. Any laptop;
+    shallow descriptions (`PERFORMANCE.md`).
+  - **heavy** (the default): [Ollama](https://ollama.com) running locally with
+    `ollama pull qwen2.5vl:7b` (6 GB; a GPU or an Apple M-series with 16 GB of
+    memory; `qwen2.5vl:3b` is 3 GB and faster, not measured).
 - The embedder downloads on first use (`intfloat/multilingual-e5-base`, 1.1 GB).
 
 ## Install and build
@@ -25,7 +30,8 @@ to `$IMAGE2VIENNA_HOME`, or to `~/.cache/image2vienna` for installed users.
 ## Classify an image
 
 ```bash
-uv run i2vienna classify logo.png                      # sections, top 10
+uv run i2vienna classify logo.png                      # sections, top 10, heavy model
+uv run i2vienna classify logo.png --describer light    # SmolVLM-256M, no Ollama
 uv run i2vienna classify logo.png --level division --top-k 5
 uv run i2vienna classify logo.png --level auto         # as deep as the evidence goes
 uv run i2vienna classify logo.png --padded             # codes as 01.01.02 (EUIPO style)
@@ -49,7 +55,8 @@ echo "a lion's head above two crossed swords" | uv run i2vienna classify - --lev
 ```python
 from image2vienna import ViennaClassifier
 
-clf = ViennaClassifier("10")                             # edition 10, English
+clf = ViennaClassifier("10")                             # edition 10, English, heavy model
+clf = ViennaClassifier("10", describer="light")          # SmolVLM-256M, no Ollama
 for m in clf.classify("logo.png", level="section", top_k=5):
     print(m.pretty, m.auxiliary, round(m.score, 3), m.text)
 print(clf.last_description)

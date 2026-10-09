@@ -17,21 +17,24 @@ Try it without installing anything:
 runs the embedder, the scoring and a small vision model in your browser (ADR 0004).
 
 ```bash
-ollama pull qwen2.5vl:7b                                 # vision model, 6 GB
 uv sync --all-extras
 uv run i2vienna download                                 # prebuilt index from huggingface.co/jaimenms/image2vienna-en
-uv run i2vienna classify logo.png --level section --top-k 5
+uv run i2vienna classify logo.png --describer light --level section --top-k 5   # no Ollama: SmolVLM-256M, any laptop
+ollama pull qwen2.5vl:7b                                 # the heavy model, 6 GB, a GPU or an M-series Mac
+uv run i2vienna classify logo.png --level section --top-k 5                     # heavy (default), the measured one
 ```
 
-`uv run i2vienna build --edition 10` builds the index from WIPO's XML instead (4 s
-plus the embedder download). The same index runs as a Hugging Face Inference
-Endpoint (a description in, codes out) from the repository
+Two vision models, named `light` and `heavy` everywhere: light runs anywhere and
+describes shallowly; heavy is the package's default and the one the evaluation
+measures. `uv run i2vienna build --edition 10` builds the index from WIPO's XML
+instead of downloading it. The same index runs as a Hugging Face Inference Endpoint
+(a description in, codes out) from the repository
 [jaimenms/image2vienna-en](https://huggingface.co/jaimenms/image2vienna-en).
 
 ```python
 from image2vienna import ViennaClassifier
 
-clf = ViennaClassifier("10")
+clf = ViennaClassifier("10", describer="light")   # or "heavy" (the default)
 for m in clf.classify("logo.png", level="section", top_k=5):
     print(m.pretty, round(m.score, 3), m.text)
 print(clf.last_description)   # what the vision model saw

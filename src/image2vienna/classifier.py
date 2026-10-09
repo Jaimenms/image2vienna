@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .config import LEVELS, default_describer, default_model, home
+from .config import LEVELS, default_describer, default_model, describer_spec, home
 from .describe import DEFAULT_PROMPT, Describer, get_describer
 from .embeddings import Embedder, get_embedder, model_slug
 from .embeddings.base import normalize as normalize_vectors
@@ -43,11 +43,14 @@ class ViennaClassifier:
         notes: bool = False,
         root: Path | None = None,
     ):
+        """``describer`` is ``"heavy"`` (Qwen2.5-VL 7B through Ollama, the default),
+        ``"light"`` (SmolVLM-256M through transformers, no Ollama) or a spec."""
         self.root = root or home()
         self.lang = lang.upper()
         self.notes = notes
         self._model_spec = model or default_model()
-        self._describer_spec = describer or default_describer()
+        spec = describer or default_describer()
+        self._describer_spec = describer_spec(spec) if isinstance(spec, str) else spec
         self.edition = resolve_built_edition(edition, self.lang, self._model_name, notes, self.root)
         self._index: ViennaIndex | None = None
         self._embedder: Embedder | None = None

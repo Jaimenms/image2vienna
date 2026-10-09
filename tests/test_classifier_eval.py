@@ -89,3 +89,14 @@ def test_sentence_chunking_and_exclusion(mini_home):
     ]
     kept = exclude_gold(cases, ("29",))
     assert [c.vienna for c in kept] == [("1.1.4",)]
+
+
+def test_describer_names_resolve_to_specs(mini_home):
+    from image2vienna.config import HEAVY_DESCRIBER, LIGHT_DESCRIBER
+
+    light = ViennaClassifier("10", model="hash:64", describer="light", root=mini_home)
+    heavy = ViennaClassifier("10", model="hash:64", describer="heavy", root=mini_home)
+    assert light._describer_spec == LIGHT_DESCRIBER and heavy._describer_spec == HEAVY_DESCRIBER
+    assert (
+        ViennaClassifier("10", model="hash:64", root=mini_home)._describer_spec == HEAVY_DESCRIBER
+    )
