@@ -37,9 +37,9 @@
   #drop input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
   #drop label.secondary { display: inline-block; padding: 8px 16px; border-radius: 6px; font-weight: 600;
                           cursor: pointer; background: var(--chip); color: var(--fg); border: 1px solid var(--line); }
-  #gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; margin-top: 10px; }
-  #gallery button { padding: 0; border: 1px solid var(--line); border-radius: 8px; background: #fff;
-                    cursor: pointer; aspect-ratio: 1; overflow: hidden; }
+  #gallery { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; margin: 4px 0 8px; }
+  #gallery button { flex: 0 0 auto; width: 88px; height: 88px; padding: 0; border: 1px solid var(--line);
+                    border-radius: 8px; background: #fff; cursor: pointer; overflow: hidden; }
   #gallery button.selected { outline: 2px solid var(--accent); }
   #gallery img { width: 100%; height: 100%; object-fit: contain; display: block; }
   textarea { width: 100%; min-height: 150px; padding: 10px 12px; border: 1px solid var(--line);
@@ -121,8 +121,6 @@
         <label id="pick" class="secondary" for="file">Choose an image…</label>
         <input id="file" type="file" accept="image/*">
       </div>
-      <h2>Examples</h2>
-      <div id="gallery"></div>
     </div>
     <div>
       <h2>Description of the figurative elements</h2>
@@ -139,6 +137,9 @@
       <div id="status" class="status">Loading…</div>
     </div>
   </div>
+
+  <h2>Examples</h2>
+  <div id="gallery"></div>
 
   <div id="graph"></div>
   <p id="legend" class="legend" hidden>Each result's path, merged into one tree: Vienna › category › division › section.
