@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Two named vision models, `light` (SmolVLM-256M, a new `hf:` describer backend
+  through transformers, the model the browser demo runs) and `heavy` (Qwen2.5-VL 7B
+  through Ollama, the default); `--describer light|heavy` on the CLI. The demo page
+  shows which one wrote the description, shows the light one on the examples by
+  default and offers the precomputed heavy one; the light model is measured on the
+  300 eval cases (`PERFORMANCE.md`).
+
 - Hub publication: `i2vienna hf-export` assembles a model repository (Parquet tables,
   vendored package, Inference Endpoints `handler.py` for descriptions, model card) and
   `i2vienna download` fetches it; `scripts/publish_hf.sh` and `scripts/hf_tag.sh`.

@@ -27,6 +27,9 @@ const ui = {
   text: $("text"),
   descNote: $("desc-note"),
   describe: $("describe"),
+  modes: $("modes"),
+  lightName: $("light-name"),
+  heavyName: $("heavy-name"),
   level: $("level"),
   topK: $("topk"),
   noColours: $("nocolours"),
@@ -55,7 +58,18 @@ const state = {
   pending: 0,
   error: null,
   image: null, // {bytes: ArrayBuffer, mime, name}
+  example: null, // the gallery example shown, with its cached descriptions
 };
+
+function currentMode() {
+  const checked = document.querySelector('input[name="mode"]:checked');
+  return checked ? checked.value : "light";
+}
+
+function modeName(mode) {
+  const v = state.manifest.vision;
+  return v && v[mode] ? v[mode].name : mode;
+}
 
 // -- status -------------------------------------------------------------------
 
@@ -205,7 +219,7 @@ function loadEmbedder() {
 function visionWorker() {
   if (!state.visionWorker) {
     const worker = new Worker("vision-worker.js", { type: "module" });
-    const { web_model: model } = state.manifest.vision;
+    const { web_model: model } = state.manifest.vision.light;
     const files = new Map(); // file -> {loaded, total}
     const loadLabel = `vision model ${model}`;
     const genLabel = "describing";
@@ -229,7 +243,7 @@ function visionWorker() {
         doneProgress(loadLabel);
         renderStatus(`Vision model: ${m.device} failed (${m.message}); trying the next option…`);
       } else if (m.type === "generating") {
-        setProgress(genLabel, m.tokens, state.manifest.vision.max_new_tokens, "tokens");
+        setProgress(genLabel, m.tokens, state.manifest.vision.light.max_new_tokens, "tokens");
       } else if (m.id !== undefined && state.visionRequests.has(m.id)) {
         const { resolve, reject } = state.visionRequests.get(m.id);
         state.visionRequests.delete(m.id);
@@ -265,7 +279,7 @@ async function gpuSupport() {
 }
 
 async function describeInBrowser(image) {
-  const v = state.manifest.vision;
+  const v = state.manifest.vision.light;
   const worker = visionWorker();
   const id = ++state.visionSeq;
   const { device, f16 } = await gpuSupport();
@@ -289,41 +303,83 @@ async function describeInBrowser(image) {
 let describing = false;
 
 async function describeCurrent() {
-  if (!state.image || describing || !state.manifest.vision) return;
+  if (!state.image || describing || !state.manifest.vision || currentMode() !== "light") return;
   describing = true;
   ui.describe.disabled = true;
   state.error = null;
   try {
-    renderStatus(state.visionReady ? "Describing…" : "Loading the vision model…");
+    renderStatus(state.visionReady ? "Describing…" : "Loading the light model…");
     const t0 = performance.now();
     const { text, device } = await describeInBrowser(state.image);
     ui.text.value = text;
     ui.descNote.textContent =
-      `Description by ${state.manifest.vision.web_model} in this browser (${device}, ` +
-      `${Math.round((performance.now() - t0) / 100) / 10} s). A small model: edit what it missed, ` +
-      "or write your own.";
+      `Light: written by ${state.manifest.vision.light.web_model} in this browser just now ` +
+      `(${device}, ${Math.round((performance.now() - t0) / 100) / 10} s). A small model: edit what ` +
+      "it missed, or write your own.";
     renderStatus();
   } catch (err) {
-    fail(err, "The in-browser vision model failed");
+    fail(err, "The light model failed");
   } finally {
     describing = false;
-    ui.describe.disabled = !state.image;
+    updateModeUi();
+  }
+}
+
+/** The Describe button and the note follow the mode and whether an example is shown. */
+function updateModeUi() {
+  const mode = currentMode();
+  const v = state.manifest.vision;
+  if (!v) {
+    ui.describe.hidden = true;
+    return;
+  }
+  ui.describe.disabled = !state.image || mode !== "light";
+  ui.describe.title =
+    mode === "light"
+      ? `${v.light.web_model} runs in a Web Worker in this tab; about 400 MB once`
+      : "The heavy model does not run in a browser";
+  if (state.example) {
+    showExampleDescription();
+  } else if (state.image) {
+    ui.descNote.textContent =
+      mode === "light"
+        ? "Click Describe to let the light model write the inventory here, or type it."
+        : `Heavy (${modeName("heavy")}) runs only with the package, through Ollama: ` +
+          "i2vienna classify <image>. Switch to Light to describe here, or type the description.";
+  }
+}
+
+function showExampleDescription() {
+  const mode = currentMode();
+  const d = state.example.descriptions || {};
+  const entry = d[mode];
+  if (entry) {
+    ui.text.value = entry.text;
+    ui.descNote.textContent =
+      mode === "light"
+        ? `Light: written offline by ${entry.model}, the same model this page runs ` +
+          "(click Describe to run it here; the wording may differ slightly). Editable."
+        : `Heavy: written offline by ${entry.model}, the package's model; it does not run ` +
+          "in a browser. Editable.";
+  } else {
+    ui.text.value = "";
+    ui.descNote.textContent = `No ${mode} description cached for this example.`;
   }
 }
 
 // -- image input --------------------------------------------------------------
 
-function setImage(bytes, mime, name, { description = "", note = "" } = {}) {
+function setImage(bytes, mime, name, example = null) {
   state.image = { bytes, mime, name };
+  state.example = example;
   const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
   ui.preview.src = url;
   ui.preview.alt = name;
   ui.preview.hidden = false;
   ui.dropText.textContent = name;
-  ui.text.value = description;
-  ui.descNote.textContent = note;
-  ui.describe.disabled = !state.manifest.vision;
+  if (!example) ui.text.value = "";
   state.error = null;
+  updateModeUi();
   renderStatus();
 }
 
@@ -331,9 +387,7 @@ async function takeFile(file) {
   if (!file || !file.type.startsWith("image/")) return;
   const bytes = await file.arrayBuffer();
   selectGallery(null);
-  setImage(bytes, file.type, file.name, {
-    note: "Click Describe to let the in-browser model write the inventory, or type it.",
-  });
+  setImage(bytes, file.type, file.name);
 }
 
 function bindImageInput() {
@@ -386,13 +440,7 @@ function renderGallery() {
         if (!res.ok) throw new Error(`${ex.image}: HTTP ${res.status}`);
         const bytes = await res.arrayBuffer();
         selectGallery(b);
-        const by = ex.described_by ? ` by ${ex.described_by}` : "";
-        setImage(bytes, res.headers.get("content-type") || "image/png", ex.title, {
-          description: ex.description,
-          note: ex.description
-            ? `Description${by} (cached with the example). Edit it, or click Describe for the in-browser model.`
-            : "No cached description: click Describe.",
-        });
+        setImage(bytes, res.headers.get("content-type") || "image/png", ex.title, ex);
       } catch (err) {
         fail(err, "Could not load the example");
       }
@@ -742,9 +790,16 @@ async function main() {
   }
   fillSelect(ui.level, [AUTO_LEVEL, ...LEVELS]);
   ui.level.value = "section";
-  if (!state.manifest.vision) ui.describe.hidden = true;
-  else {
-    ui.describe.title = `${state.manifest.vision.web_model} runs in a Web Worker in this tab; about 400 MB once`;
+  const v = state.manifest.vision;
+  if (!v) {
+    ui.describe.hidden = true;
+    ui.modes.hidden = true;
+  } else {
+    ui.lightName.textContent = `(${v.light.name}, runs in this browser)`;
+    ui.heavyName.textContent = `(${v.heavy.name} through Ollama, precomputed for the examples)`;
+    for (const r of document.querySelectorAll('input[name="mode"]')) {
+      r.addEventListener("change", updateModeUi);
+    }
   }
   await loadExamples();
   renderGallery();

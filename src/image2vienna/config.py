@@ -26,8 +26,18 @@ DEFAULT_LANG = "EN"
 DEFAULT_MODEL = "st:intfloat/multilingual-e5-base"
 
 #: Vision-language model that turns the image into a description of its figurative
-#: elements. Served by Ollama; ``ollama pull qwen2.5vl:7b`` (6 GB) first.
-DEFAULT_DESCRIBER = "ollama:qwen2.5vl:7b"
+#: elements. Two are supported, named after their weight:
+#: - ``heavy``: Qwen2.5-VL 7B served by Ollama (``ollama pull qwen2.5vl:7b``, 6 GB),
+#:   the package default and the model the evals measure;
+#: - ``light``: SmolVLM-256M through transformers, the model the browser demo runs,
+#:   far shallower but needing no Ollama.
+HEAVY_DESCRIBER = "ollama:qwen2.5vl:7b"
+LIGHT_DESCRIBER = "hf:HuggingFaceTB/SmolVLM-256M-Instruct"
+DESCRIBERS = {"heavy": HEAVY_DESCRIBER, "light": LIGHT_DESCRIBER}
+DEFAULT_DESCRIBER = HEAVY_DESCRIBER
+#: Prompt each model follows best (docs/evals.md): the long ``inventory`` prompt makes the
+#: light model answer with one word or loop; the short ``terse`` one gets sentences out of it.
+DESCRIBER_PROMPTS = {"heavy": "inventory", "light": "terse"}
 
 #: Hugging Face model repository holding the published English index.
 DEFAULT_HF_REPO = "jaimenms/image2vienna-en"
@@ -75,3 +85,8 @@ def default_model() -> str:
 
 def default_describer() -> str:
     return os.environ.get("IMAGE2VIENNA_DESCRIBER", DEFAULT_DESCRIBER)
+
+
+def describer_spec(name: str) -> str:
+    """``light`` / ``heavy`` -> spec; any other value is taken as a spec already."""
+    return DESCRIBERS.get(name, name)

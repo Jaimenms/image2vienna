@@ -17,6 +17,7 @@ from .config import (
     LEVELS,
     default_describer,
     default_model,
+    describer_spec,
     home,
 )
 from .describe import PROMPTS
@@ -134,13 +135,15 @@ def scheme_cmd(
 @app.command()
 def describe(
     image: Path = typer.Argument(..., help="Image file (JPG, PNG, ...)"),
-    describer: str = typer.Option(None, help=f"Vision model spec (default {default_describer()})"),
+    describer: str = typer.Option(
+        None, help=f"'heavy' (default, {default_describer()}), 'light' (SmolVLM) or a spec"
+    ),
     prompt: str = typer.Option("default", help=f"Prompt name: {', '.join(PROMPTS)}"),
 ):
     """Stage one alone: print the vision model's description of the figurative elements."""
     from .describe import get_describer
 
-    d = get_describer(describer or default_describer())
+    d = get_describer(describer_spec(describer or default_describer()))
     console.print(d.describe(image, prompt=PROMPTS[prompt]))
 
 
@@ -152,7 +155,9 @@ def classify(
     top_k: int = typer.Option(10),
     lang: str = typer.Option("EN"),
     model: str = typer.Option(None),
-    describer: str = typer.Option(None, help=f"Vision model spec (default {default_describer()})"),
+    describer: str = typer.Option(
+        None, help=f"'heavy' (default, {default_describer()}), 'light' (SmolVLM) or a spec"
+    ),
     notes: bool = typer.Option(False, help="Use the index built with notes"),
     prompt: str = typer.Option("default", help=f"Prompt name: {', '.join(PROMPTS)}"),
     gap: float = typer.Option(None, help="Drop results more than this below the best score"),
@@ -165,7 +170,13 @@ def classify(
     """Rank Vienna codes for an image (or for a description read from stdin)."""
     from .classifier import ViennaClassifier
 
-    clf = ViennaClassifier(edition, lang=lang, model=model, describer=describer, notes=notes)
+    clf = ViennaClassifier(
+        edition,
+        lang=lang,
+        model=model,
+        describer=describer_spec(describer or default_describer()),
+        notes=notes,
+    )
     params = {
         "level": level,
         "top_k": top_k,
@@ -270,7 +281,9 @@ def euipo_cases(
 @app.command("describe-cases")
 def describe_cases(
     cases: Path = typer.Argument(..., help="JSONL of eval cases; descriptions are written back"),
-    describer: str = typer.Option(None, help=f"Vision model spec (default {default_describer()})"),
+    describer: str = typer.Option(
+        None, help=f"'heavy' (default, {default_describer()}), 'light' (SmolVLM) or a spec"
+    ),
     prompt: str = typer.Option("default", help=f"Prompt name: {', '.join(PROMPTS)}"),
     limit: int = typer.Option(None, help="Only the first N cases"),
     force: bool = typer.Option(False, help="Describe again even when cached"),
@@ -278,7 +291,7 @@ def describe_cases(
     """Run the vision model once over the cases and cache the descriptions in the file."""
     from .eval.describe import describe_cases as run
 
-    spec = describer or default_describer()
+    spec = describer_spec(describer or default_describer())
     with console.status("describing...") as status:
         done, total = run(
             cases,
@@ -299,7 +312,9 @@ def eval_cmd(
     top_k: int = typer.Option(10),
     lang: str = typer.Option("EN"),
     model: str = typer.Option(None),
-    describer: str = typer.Option(None, help="Which cached descriptions to score"),
+    describer: str = typer.Option(
+        None, help="Which cached descriptions to score: 'heavy' (default), 'light' or a spec"
+    ),
     prompt: str = typer.Option("default"),
     notes: bool = typer.Option(False),
     principal_only: bool = typer.Option(False),
@@ -319,7 +334,7 @@ def eval_cmd(
     from .eval.harness import evaluate, exclude_gold
     from .search import Weights
 
-    spec = describer or default_describer()
+    spec = describer_spec(describer or default_describer())
     key = description_key(spec, prompt)
     items = [c for c in load_cases(cases) if key in c.descriptions][:limit]
     if exclude:

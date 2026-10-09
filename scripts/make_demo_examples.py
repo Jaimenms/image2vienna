@@ -22,8 +22,13 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from image2vienna.classifier import ViennaClassifier
-from image2vienna.config import default_describer
-from image2vienna.describe import INVENTORY_PROMPT, get_describer
+from image2vienna.config import (
+    DESCRIBER_PROMPTS,
+    HEAVY_DESCRIBER,
+    LIGHT_DESCRIBER,
+    default_describer,
+)
+from image2vienna.describe import PROMPTS, get_describer
 from image2vienna.eval import load_cases
 from image2vienna.eval.describe import description_key
 from image2vienna.scheme.codes import truncate_code
@@ -156,16 +161,28 @@ def pick_euipo(clf: ViennaClassifier) -> list[dict]:
 def main():
     clf = ViennaClassifier("10")
     examples = draw_logos() + pick_euipo(clf)
-    describer = None
-    key = description_key(default_describer(), "inventory")
+    cached = {}
+    if TARGET.exists():  # keep descriptions already written
+        for line in TARGET.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                d = json.loads(line)
+                cached[d["id"]] = d.get("descriptions", {})
     for ex in examples:
-        if key in ex["descriptions"]:
-            continue
-        describer = describer or get_describer(default_describer())
-        ex["descriptions"][key] = describer.describe(
-            IMAGES / Path(ex["image"]).name, prompt=INVENTORY_PROMPT
-        )
-        print("described", ex["id"])
+        ex["descriptions"] = {**cached.get(ex["id"], {}), **ex["descriptions"]}
+    # both models the demo names: heavy (Qwen2.5-VL via Ollama) and light (SmolVLM, the
+    # model the page itself runs), each under the prompt it follows best
+    for mode, spec in (("heavy", HEAVY_DESCRIBER), ("light", LIGHT_DESCRIBER)):
+        prompt_name = DESCRIBER_PROMPTS[mode]
+        key = description_key(spec, prompt_name)
+        describer = None
+        for ex in examples:
+            if key in ex["descriptions"]:
+                continue
+            describer = describer or get_describer(spec)
+            ex["descriptions"][key] = describer.describe(
+                IMAGES / Path(ex["image"]).name, prompt=PROMPTS[prompt_name]
+            )
+            print("described", ex["id"], "with", spec, prompt_name)
     with open(TARGET, "w", encoding="utf-8") as fh:
         for ex in examples:
             fh.write(json.dumps(ex, ensure_ascii=False) + "\n")

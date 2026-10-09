@@ -57,10 +57,9 @@ def test_export_layout(mini_home, tmp_path):
         "division",
         "section",
     ]
-    assert (
-        manifest["vision"]["web_model"].startswith("HuggingFaceTB/")
-        and manifest["vision"]["prompt"]
-    )
+    vision = manifest["vision"]
+    assert vision["light"]["web_model"].startswith("HuggingFaceTB/") and vision["light"]["prompt"]
+    assert vision["heavy"]["spec"].startswith("ollama:")
     entry = manifest["index"]
     assert entry["edition"] == "10" and entry["lang"] == "EN" and entry["notes"] is False
     scheme = json.loads((out / entry["scheme"]).read_text())
@@ -95,7 +94,11 @@ def test_export_copies_examples_without_gold(mini_home, tmp_path):
                 "title": "One star",
                 "vienna": ["1.1.2"],
                 "source": "drawn",
-                "descriptions": {"ollama:x": "a star", "ollama:x|inventory": "One star, yellow."},
+                "descriptions": {
+                    "ollama:qwen2.5vl:7b": "a star",
+                    "ollama:qwen2.5vl:7b|inventory": "One star, yellow.",
+                    "hf:HuggingFaceTB/SmolVLM-256M-Instruct|terse": "A yellow star.",
+                },
             }
         )
         + "\n"
@@ -106,8 +109,18 @@ def test_export_copies_examples_without_gold(mini_home, tmp_path):
         "image": "examples/star.png",
         "title": "One star",
         "source": "drawn",
-        "description": "One star, yellow.",
-        "described_by": "ollama:x",
+        "descriptions": {
+            "light": {
+                "text": "A yellow star.",
+                "model": "hf:HuggingFaceTB/SmolVLM-256M-Instruct",
+                "prompt": "terse",
+            },
+            "heavy": {
+                "text": "One star, yellow.",
+                "model": "ollama:qwen2.5vl:7b",
+                "prompt": "inventory",
+            },
+        },
     }
     assert (out / "examples" / "star.png").exists()
     assert "Example images: drawn." in (out / "README.md").read_text()

@@ -64,8 +64,10 @@ It beats a frequency prior at rank 1 above the section and finds the right divis
 for most pictorial elements (73% of the gold divisions in Animals, 54% in Heraldry,
 where the prior finds none); the prior wins at depth because EUIPO's most frequent
 codes are conventions (letters in a special font, quadrilaterals, colours) that need no
-image. `qwen2.5vl:7b` under the `default` prompt, whole description, titles-only texts;
-[PERFORMANCE.md](PERFORMANCE.md) has every configuration and the per-category table.
+image. `qwen2.5vl:7b` (the "heavy" model) under the `default` prompt, whole description,
+titles-only texts; [PERFORMANCE.md](PERFORMANCE.md) has every configuration, the
+per-category table and the "light" model the browser demo runs (SmolVLM-256M:
+category hit@1 26.0%, division 14.0%, below the frequency baseline).
 
 ## Documentation
 
@@ -115,10 +117,12 @@ image. `qwen2.5vl:7b` under the `default` prompt, whole description, titles-only
 ## Browser demo
 
 `i2vienna web-export space/image2vienna` assembles a static Hugging Face Space (ADR
-0004): upload a logo or pick an example, a small vision model in a Web Worker writes
-the inventory (the examples carry Qwen2.5-VL's), the ONNX twin of the embedder scores
-it against the hierarchy in the tab, and the results are drawn as paths through
-Vienna › category › division › section. `scripts/publish_space.sh` uploads it.
+0004): upload a logo or pick an example, the ONNX twin of the embedder scores the
+description against the hierarchy in the tab, and the results are drawn as paths
+through Vienna › category › division › section. Two vision models are named on the
+page: **light** (SmolVLM-256M, runs in the browser; the examples show its description
+by default) and **heavy** (Qwen2.5-VL 7B through Ollama, the package's model,
+precomputed for the examples). `scripts/publish_space.sh` uploads it.
 
 ## Development
 

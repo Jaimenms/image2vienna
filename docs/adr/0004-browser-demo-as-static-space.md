@@ -23,9 +23,24 @@ through Ollama, which no browser runs. Options for the page:
 
 ## Decision
 
-All of 2 and 3, and the example images carry the description Qwen2.5-VL 7B wrote for
-them (`scripts/make_demo_examples.py` caches it in `evals/demo_examples.jsonl`), so
-the gallery shows the real pipeline while an upload shows the in-browser model.
+All of 2 and 3, with the two vision models named on the page so that nobody mistakes
+one for the other (amended the same day, after the first version showed Qwen's text
+on the examples and SmolVLM's after a click on Describe, which read as the same
+model changing its mind):
+
+- **Light** is SmolVLM-256M. The page runs it in a Web Worker on uploads, and the
+  package runs the same model through transformers (`hf:` describer backend,
+  `--describer light`) to write the example descriptions shown by default, so what
+  the gallery shows is what the browser produces (the ONNX weights can word it
+  slightly differently). It gets the short `terse` prompt: under the long
+  `inventory` prompt it answers with one word ("Yellow.") or loops, and a repetition
+  penalty makes it invent elements; `terse` yields short, plausible sentences
+  (`docs/evals.md`, 2026-10-09 evening).
+- **Heavy** is Qwen2.5-VL 7B through Ollama, the package's default and the model the
+  evaluation measures. It does not run in a browser; its descriptions are precomputed
+  for the examples (`scripts/make_demo_examples.py` caches both in
+  `evals/demo_examples.jsonl`) and selectable with a radio button; for an upload the
+  page says to run the package.
 
 `i2vienna web-export <dir>` assembles the Space:
 
@@ -36,10 +51,11 @@ the gallery shows the real pipeline while an upload shows the in-browser model.
   `SchemeTable.text_at` does.
 - **Embedder**: `transformers.js` loads `Xenova/multilingual-e5-base` (q8, 279 MB)
   with the same `query: ` prefix as the Python backend.
-- **Vision**: `vision-worker.js` loads `HuggingFaceTB/SmolVLM-256M-Instruct` in a
-  Web Worker on first use (`AutoProcessor`, `AutoModelForVision2Seq`, the
-  `inventory` prompt, greedy decoding, at most 220 tokens) and streams a token
-  count while it generates. The visitor can edit the result or type a description.
+- **Vision**: `vision-worker.js` loads the light model in a Web Worker on first use
+  (`AutoProcessor`, `AutoModelForVision2Seq`, the `inventory` prompt, greedy
+  decoding, at most 220 tokens; fp16 on WebGPU with `shader-f16`, fp32 on WebGPU
+  without it, q8/fp32 on WASM) and streams a token count while it generates. The
+  visitor can edit the result or type a description.
 - **Scoring**: `scorer.js` is a line-by-line port of `search/scorer.py` on three
   levels, with `principalOnly` and `excludeCodes` (the page offers "No colours" and
   "Principal sections only"). `tests/test_web.py` exports the mini scheme with
@@ -61,5 +77,5 @@ the gallery shows the real pipeline while an upload shows the in-browser model.
 - What the Space publishes is derived data and public images only: WIPO's titles,
   quantised vectors, four drawn logos and six EUIPO marks from L3D (CC BY 4.0) with
   their cached descriptions. Gold codes never reach the page, as in text2ipc's demo.
-- The demo's in-browser descriptions are not the package's; the page says so next to
-  the text box, and the evals (`PERFORMANCE.md`) measure the package, not the page.
+- The light model's descriptions are not the package's; the page names the model
+  next to the text box, and `PERFORMANCE.md` measures both so the gap is a number.

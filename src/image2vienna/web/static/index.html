@@ -108,7 +108,10 @@
   <h1>image2vienna <small>trade mark image → Vienna codes, in your browser</small></h1>
   <p class="lead">Pick an example or upload a logo. A vision model writes an inventory of its
     figurative elements, an embedding model scores that text against the Vienna Classification,
-    and the results are drawn as paths through the hierarchy. Nothing leaves this tab.</p>
+    and the results are drawn as paths through the hierarchy. Nothing leaves this tab.
+    Two vision models exist: the <strong>light</strong> one runs here, in your browser; the
+    <strong>heavy</strong> one (the package's, measured in the evaluation) does not, so its
+    descriptions are precomputed for the examples only.</p>
 
   <div class="panes">
     <div>
@@ -122,10 +125,14 @@
     </div>
     <div>
       <h2>Description of the figurative elements</h2>
-      <textarea id="text" placeholder="Pick an example (its description was written by Qwen2.5-VL 7B), or upload an image and click Describe to let the in-browser model write one. You can edit it or type your own." spellcheck="false"></textarea>
+      <div class="controls" id="modes">
+        <label><input type="radio" name="mode" value="light" checked> Light <small id="light-name">(small model, runs in this browser)</small></label>
+        <label><input type="radio" name="mode" value="heavy"> Heavy <small id="heavy-name">(large model, precomputed for the examples)</small></label>
+      </div>
+      <textarea id="text" placeholder="Pick an example, or upload an image and click Describe to let the light model write the inventory in this browser. The text is editable; you can also type your own." spellcheck="false"></textarea>
       <p id="desc-note" class="note"></p>
       <div class="controls">
-        <button id="describe" class="secondary" type="button" disabled>Describe (in-browser model)</button>
+        <button id="describe" class="secondary" type="button" disabled>Describe with the light model</button>
         <label>Level <select id="level"></select></label>
         <label>Top <input id="topk" type="number" min="1" max="50" value="8"></label>
         <label><input id="nocolours" type="checkbox"> No colours <small>(mask category 29)</small></label>

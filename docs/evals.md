@@ -265,3 +265,32 @@ categories alone (hit@10 34.3%, recall@10 20.4%).
 | titles, inventory prompt, sentence mean | 6.4% | 14.1% | 24.9% | 10.5% | 1.0% | 0.116 |
 | titles, inventory prompt, sentence max | 10.1% | 17.5% | 30.3% | 12.1% | 2.0% | 0.153 |
 | titles, inventory prompt, pictorial only (no 26-29) | 10.5% | 22.7% | 34.3% | 20.4% | 6.1% | 0.176 |
+
+
+## The light model: SmolVLM-256M (2026-10-09, evening)
+
+The browser demo runs `HuggingFaceTB/SmolVLM-256M-Instruct` (the "light" model;
+the package can run it too, `--describer light`, through transformers, 1 to 1.6 s
+per image on the M5 Pro). Prompts tried on five demo images:
+
+| prompt | behaviour |
+|---|---|
+| `inventory` (the heavy model's) | one word ("Yellow.", "Black and white.") or a repetition loop; sometimes a usable paragraph |
+| `terse` | short plausible sentences: "The child is holding a teddy bear", "a tree ... leaves are green"; sometimes interpretive ("The sun is a symbol of warmth") |
+| a light-specific inventory prompt | echoes the prompt or names a word |
+| any prompt + repetition penalty 1.3 | invents elements (dogs, cats, letters) |
+
+`terse` is the light model's prompt from here on (`config.DESCRIBER_PROMPTS`); the
+demo examples carry its `terse` description and the heavy model's `inventory` one.
+Hit rates of the light model on the 300 L3D cases follow in `PERFORMANCE.md`.
+
+Light model on the 300 L3D cases (whole description, titles index):
+
+| level | light, terse: hit@1 / @3 / @10 | light, inventory: hit@1 / @3 / @10 | heavy, default: hit@1 / @3 / @10 |
+|---|---|---|---|
+| category | 26.0 / 44.3 / 48.0 | 20.3 / 42.3 / 47.3 | 44.3 / 68.7 / 72.7 |
+| division | 14.0 / 26.3 / 31.7 | 14.3 / 25.7 / 31.0 | 33.0 / 50.7 / 60.3 |
+| section | 6.1 / 11.1 / 17.5 | 5.7 / 10.8 / 15.5 | 9.8 / 20.2 / 33.0 |
+
+The light model sits below the frequency baseline at every level; `terse` beats
+`inventory` by 5.7 points at category hit@1 and ties elsewhere.

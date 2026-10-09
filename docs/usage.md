@@ -85,8 +85,16 @@ cd space/image2vienna && python -m http.server 8765   # open http://localhost:87
 scripts/publish_space.sh                          # needs `uv run hf auth login` once
 ```
 
-The page lets a visitor pick an example or upload an image, writes a description
-with a small vision model in a Web Worker (SmolVLM-256M through transformers.js) or
-takes the cached one of the example, embeds it with the ONNX twin of the embedder,
-ranks with `scorer.js` and draws the results as paths through the hierarchy (ADR
-0004). `--vision-model ""` ships the page without the in-browser model.
+The page lets a visitor pick an example or upload an image, embeds the description
+with the ONNX twin of the embedder, ranks with `scorer.js` and draws the results as
+paths through the hierarchy (ADR 0004). Two vision models are named on the page:
+**light** (SmolVLM-256M, runs in the browser on uploads; the examples show its
+description by default, computed offline with the same model) and **heavy**
+(Qwen2.5-VL 7B through Ollama, precomputed for the examples only). `--vision-model ""`
+ships the page without the in-browser model.
+
+The same names work in the package: `i2vienna describe logo.png --describer light`
+runs SmolVLM through transformers (no Ollama needed, about 1.5 s per image on an
+Apple GPU, far shallower); `--describer heavy` (the default) runs Qwen2.5-VL 7B
+through Ollama. Each model has the prompt it follows best (`--prompt` overrides):
+`inventory` for heavy, `terse` for light.

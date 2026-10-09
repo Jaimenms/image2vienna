@@ -5,7 +5,9 @@ the query in text2ipc.
 
 A backend is selected by a spec string ``<backend>:<model>``:
 
-- ``ollama:qwen2.5vl:7b``   any vision model served by Ollama (default)
+- ``ollama:qwen2.5vl:7b``   any vision model served by Ollama (default, the "heavy" one)
+- ``hf:HuggingFaceTB/SmolVLM-256M-Instruct``  a small model through transformers, run
+                            locally (the "light" one, the same the browser demo runs)
 - ``fixed:<dir>``           for tests and cached runs: reads ``<image stem>.txt`` next
                             to the image or under ``<dir>``, never looks at pixels
 """
@@ -38,6 +40,10 @@ def get_describer(spec: str | Describer, **kwargs) -> Describer:
         from .ollama import OllamaDescriber
 
         return OllamaDescriber(model, **kwargs)
+    if backend == "hf":
+        from .hf import HfDescriber
+
+        return HfDescriber(model, **kwargs)
     if backend == "fixed":
         from .fixed import FixedDescriber
 
