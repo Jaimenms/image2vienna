@@ -12,12 +12,21 @@ every measurement along the way. English scheme, edition 10 (in force 2026-01-01
 
 ## Quick start
 
+Try it without installing anything:
+[huggingface.co/spaces/jaimenms/image2vienna](https://huggingface.co/spaces/jaimenms/image2vienna)
+runs the embedder, the scoring and a small vision model in your browser (ADR 0004).
+
 ```bash
 ollama pull qwen2.5vl:7b                                 # vision model, 6 GB
 uv sync --all-extras
-uv run i2vienna build --edition 10                       # WIPO XML -> scheme table + index, 4 s
+uv run i2vienna download                                 # prebuilt index from huggingface.co/jaimenms/image2vienna-en
 uv run i2vienna classify logo.png --level section --top-k 5
 ```
+
+`uv run i2vienna build --edition 10` builds the index from WIPO's XML instead (4 s
+plus the embedder download). The same index runs as a Hugging Face Inference
+Endpoint (a description in, codes out) from the repository
+[jaimenms/image2vienna-en](https://huggingface.co/jaimenms/image2vienna-en).
 
 ```python
 from image2vienna import ViennaClassifier
@@ -87,11 +96,13 @@ image. `qwen2.5vl:7b` under the `default` prompt, whole description, titles-only
 │   ├── search/scorer.py          cosine + path/subtree support, beam descent, auto level, distinct branches
 │   ├── describe/                 Describer protocol: Ollama vision backend, fixed backend (tests), prompts
 │   ├── eval/                     cases, hit-rate harness, description cache, L3D and EUIPO fetchers
+│   ├── hf/                       Inference Endpoints handler and model repository export
 │   └── web/                      static Space export; static/scorer.js is the port of scorer.py, vision-worker.js the in-browser model
 ├── scripts/eval_sweep.py         every scoring configuration from cached descriptions, Markdown out
 ├── scripts/make_notebooks.py     generates notebooks/ (edit this, not the .ipynb)
 ├── scripts/make_demo_examples.py drawn logos + EUIPO marks with cached descriptions for the demo
 ├── scripts/publish_space.sh      export + upload the browser demo (static Space)
+├── scripts/publish_hf.sh         export + upload the index as a model repo (endpoint handler); hf_tag.sh tags both
 ├── notebooks/01_image2vienna.ipynb  walk-through: drawn logos, both stages, eval on the L3D sample
 ├── evals/l3d_300.jsonl           300 EUIPO marks: codes, verbal element, cached descriptions
 ├── evals/demo_examples.jsonl     the demo's example images (evals/demo_images/) and their descriptions

@@ -70,7 +70,10 @@ def test_export_layout(mini_home, tmp_path):
     assert scheme["parent"][0] == -1 and all(p < i for i, p in enumerate(scheme["parent"]))
     assert scheme["auxiliary"][scheme["code"].index("1.1.2")] == 1
     assert (out / entry["vectors"]).stat().st_size == rows * 4 + rows * 64
-    assert "sdk: static" in (out / "README.md").read_text()
+    readme = (out / "README.md").read_text()
+    assert "sdk: static" in readme
+    short = next(line for line in readme.splitlines() if line.startswith("short_description:"))
+    assert len(short.split(":", 1)[1].strip()) <= 60  # the Hub rejects longer ones
 
 
 def test_export_without_vision_model(mini_home, tmp_path):

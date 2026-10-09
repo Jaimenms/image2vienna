@@ -62,7 +62,7 @@ sdk: static
 app_file: index.html
 pinned: false
 license: mit
-short_description: Trade mark image to Vienna Classification codes, in your browser
+short_description: Trade mark image to Vienna codes, in your browser
 models:
 {models}
 ---

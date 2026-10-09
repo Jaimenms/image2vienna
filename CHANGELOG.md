@@ -7,6 +7,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Hub publication: `i2vienna hf-export` assembles a model repository (Parquet tables,
+  vendored package, Inference Endpoints `handler.py` for descriptions, model card) and
+  `i2vienna download` fetches it; `scripts/publish_hf.sh` and `scripts/hf_tag.sh`.
+  Published as `jaimenms/image2vienna-en` (tag v0.1.0) and the demo as the static
+  Space `jaimenms/image2vienna`.
 - `image2vienna` package and `i2vienna` CLI: WIPO Vienna Classification (edition 10,
   English) parsed from nivilo's `full.xml` into a Parquet scheme table and an
   embedded index (`build`, `scheme`, `show`, `indexes`, `editions`).

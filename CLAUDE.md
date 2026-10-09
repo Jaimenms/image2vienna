@@ -30,6 +30,7 @@ strategy, same conventions, same embedder, applied to images.
 | `src/image2vienna/search/` | Hierarchical scoring (text2ipc's scorer on three levels) |
 | `src/image2vienna/describe/` | Describer protocol; Ollama vision backend, fixed backend for tests, prompts |
 | `src/image2vienna/eval/` | Cases, hit-rate harness, description cache, L3D and EUIPO fetchers |
+| `src/image2vienna/hf/` | Inference Endpoints handler (descriptions in, codes out) and model repository export |
 | `src/image2vienna/web/` | Static Hugging Face Space export; `static/scorer.js` is a port of `search/scorer.py`, `static/vision-worker.js` runs a small vision model in the page |
 | `src/image2vienna/classifier.py` | The public facade |
 | `evals/` | JSONL eval cases with cached descriptions (committed; images are not) |
@@ -52,7 +53,11 @@ strategy, same conventions, same embedder, applied to images.
 - Any new heuristic or prompt needs: a doc section, a parameter with a default, a
   test on the mini scheme, and a sweep run before and after with the numbers
   appended to `docs/evals.md`.
-- Every user-visible change gets a line under `[Unreleased]` in `CHANGELOG.md`.
+- Every user-visible change gets a line under `[Unreleased]` in `CHANGELOG.md`; a
+  release moves them under a version heading, bumps `pyproject.toml` and
+  `__version__`, and tags git and the Hub repositories (`scripts/hf_tag.sh`).
+  Repository names are fixed: model `jaimenms/image2vienna-en`, Space
+  `jaimenms/image2vienna`; a new index does not get a new repository.
 - Notebooks are generated from `scripts/make_notebooks.py`, stay thin (logic lives in
   the package) and must execute top-to-bottom with Ollama running and the index built.
 - `PERFORMANCE.md` is rewritten when the standard eval changes; `docs/evals.md` keeps
@@ -84,5 +89,8 @@ uv run python scripts/make_notebooks.py && uv run jupyter nbconvert --to noteboo
 uv run python scripts/make_demo_examples.py             # evals/demo_images + demo_examples.jsonl
 uv run i2vienna web-export space/image2vienna            # static Space (browser demo)
 scripts/publish_space.sh                                 # export + upload the Space
+uv run i2vienna hf-export hf/image2vienna-en             # model repo (handler + tables + package)
+scripts/publish_hf.sh                                    # export + upload the model repo, tagged v<version>
+uv run i2vienna download                                 # what an end user runs (from the Hub)
 uv run pytest && uv run ruff check . && uv run ruff format .
 ```

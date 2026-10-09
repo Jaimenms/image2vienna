@@ -11,8 +11,13 @@
 
 ```bash
 uv sync --all-extras
-uv run i2vienna build --edition 10          # downloads WIPO's XML, embeds 1,955 entries
+uv run i2vienna download                     # prebuilt index from huggingface.co/jaimenms/image2vienna-en
+uv run i2vienna build --edition 10           # or build it: downloads WIPO's XML, embeds 1,955 entries
 ```
+
+The model repository is also a custom Inference Endpoints handler: deploy it from
+its Hub page and send `{"inputs": "<description of the figurative elements>",
+"parameters": {"level": "section", "top_k": 5}}`; its card lists every parameter.
 
 The scheme table and the index go to `data/` inside the repository (gitignored), or
 to `$IMAGE2VIENNA_HOME`, or to `~/.cache/image2vienna` for installed users.
