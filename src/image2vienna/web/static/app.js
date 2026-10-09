@@ -21,6 +21,7 @@ const $ = (id) => document.getElementById(id);
 const ui = {
   drop: $("drop"),
   dropText: $("drop-text"),
+  pick: $("pick"),
   preview: $("preview"),
   file: $("file"),
   gallery: $("gallery"),
@@ -309,7 +310,7 @@ async function describeCurrent() {
     fail(err, "The vision model failed");
   } finally {
     describing = false;
-    ui.describe.disabled = !state.image; // the note written above stays
+    refreshButtons(); // the note written above stays
   }
 }
 
@@ -320,7 +321,6 @@ function updateDescribeUi() {
     ui.describe.hidden = true;
     return;
   }
-  ui.describe.disabled = !state.image;
   ui.describe.title = `${v.web_model} runs in a Web Worker in this tab; about 250 MB once`;
   if (state.example) {
     const ex = state.example;
@@ -332,18 +332,29 @@ function updateDescribeUi() {
   } else if (state.image) {
     ui.descNote.textContent = "Click Describe to let the vision model write the inventory here, or type it.";
   }
+  refreshButtons();
 }
 
 // -- image input --------------------------------------------------------------
 
+/** A new image makes the previous results stale: the graph and the table go until Classify. */
+function clearResults() {
+  ui.graph.innerHTML = "";
+  ui.legend.hidden = true;
+  ui.results.innerHTML = "";
+  ui.meta.textContent = "";
+  hideTip();
+}
+
 function setImage(bytes, mime, name, example = null) {
   state.image = { bytes, mime, name };
   state.example = example;
+  clearResults();
   const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
   ui.preview.src = url;
   ui.preview.alt = name;
   ui.preview.hidden = false;
-  ui.dropText.textContent = name;
+  ui.dropText.textContent = `${name} · drop, paste or`;
   if (!example) ui.text.value = "";
   state.error = null;
   updateDescribeUi();
@@ -357,8 +368,32 @@ async function takeFile(file) {
   setImage(bytes, file.type, file.name);
 }
 
+/** The Describe button is the next step (blue) while an image has no description. */
+function refreshButtons() {
+  const enabled = Boolean(state.image) && Boolean(state.manifest.vision);
+  ui.describe.disabled = !enabled;
+  const next = enabled && !ui.text.value.trim();
+  ui.describe.classList.toggle("primary", next);
+  ui.describe.classList.toggle("secondary", !next);
+}
+
 function bindImageInput() {
-  ui.file.addEventListener("change", () => takeFile(ui.file.files[0]));
+  const pick = (e) => {
+    e.preventDefault();
+    ui.file.click();
+  };
+  ui.file.addEventListener("change", () => {
+    takeFile(ui.file.files[0]);
+    ui.file.value = ""; // the same file can be picked again
+  });
+  // the label opens the picker natively; a click elsewhere in the area does it by script
+  ui.drop.addEventListener("click", (e) => {
+    if (e.target !== ui.pick && e.target !== ui.file) pick(e);
+  });
+  ui.drop.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") pick(e);
+  });
+  ui.text.addEventListener("input", refreshButtons);
   ui.drop.addEventListener("dragover", (e) => {
     e.preventDefault();
     ui.drop.classList.add("over");
@@ -772,6 +807,7 @@ async function main() {
   fillSelect(ui.level, [AUTO_LEVEL, ...LEVELS]);
   ui.level.value = "section";
   if (!state.manifest.vision) ui.describe.hidden = true;
+  refreshButtons();
   await loadExamples();
   renderGallery();
   bindImageInput();
