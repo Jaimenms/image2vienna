@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>image2vienna</title>
+<meta name="description" content="Trade mark image to Vienna Classification codes, computed in your browser.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fbfbfa; --fg: #1d1d1b; --muted: #6b6b66; --line: #e2e2dd;
+    --accent: #4b3fbf; --accent-fg: #fff; --chip: #f0f0ec; --bar: #dedaf7;
+    --edge: #a9a9a2; --tip-bg: #ffffff; --shadow: 0 4px 16px rgba(0,0,0,.14);
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151514; --fg: #ecece8; --muted: #9b9b94; --line: #2c2c2a;
+            --accent: #9b8fff; --accent-fg: #130f33; --chip: #222220; --bar: #2d2863;
+            --edge: #55554f; --tip-bg: #1f1f1d; --shadow: 0 4px 16px rgba(0,0,0,.5); }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h1 small { font-weight: normal; color: var(--muted); font-size: 1rem; margin-left: 8px; }
+  h2 { font-size: 1rem; margin: 18px 0 6px; color: var(--muted); font-weight: 600; }
+  p.lead { margin: 0 0 16px; color: var(--muted); }
+  .panes { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 720px) { .panes { grid-template-columns: 1fr; } }
+  #drop { border: 2px dashed var(--line); border-radius: 10px; padding: 12px; text-align: center;
+          color: var(--muted); cursor: pointer; min-height: 220px; display: flex; flex-direction: column;
+          align-items: center; justify-content: center; gap: 8px; }
+  #drop.over { border-color: var(--accent); color: var(--fg); }
+  #drop img { max-width: 100%; max-height: 260px; border-radius: 6px; background: #fff; }
+  #drop input { display: none; }
+  #gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; margin-top: 10px; }
+  #gallery button { padding: 0; border: 1px solid var(--line); border-radius: 8px; background: #fff;
+                    cursor: pointer; aspect-ratio: 1; overflow: hidden; }
+  #gallery button.selected { outline: 2px solid var(--accent); }
+  #gallery img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  textarea { width: 100%; min-height: 150px; padding: 10px 12px; border: 1px solid var(--line);
+             border-radius: 8px; background: transparent; color: inherit; font: inherit; resize: vertical; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+  .controls label { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .controls label small { color: var(--muted); font-size: .8rem; }
+  select, input[type=number] { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+             background: transparent; color: inherit; font: inherit; }
+  input[type=number] { width: 64px; }
+  button.primary, button.secondary { padding: 8px 16px; border: 0; border-radius: 6px; font: inherit;
+           font-weight: 600; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-fg); }
+  button.secondary { background: var(--chip); color: var(--fg); border: 1px solid var(--line); }
+  button:disabled { opacity: .55; cursor: wait; }
+  .note { color: var(--muted); font-size: .85rem; margin: 4px 0 0; }
+  .status { color: var(--muted); font-size: .9rem; min-height: 1.5em; margin: 8px 0; }
+  .status.error { color: #c0392b; }
+  .progress { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr auto; gap: 10px;
+              align-items: center; margin: 2px 0; }
+  .bar { height: 8px; background: var(--bar); border-radius: 4px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .92rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.code { font-family: var(--mono); white-space: nowrap; }
+  #meta { color: var(--muted); font-size: .85rem; margin-top: 8px; }
+  /* graph */
+  #graph { overflow: auto; margin-top: 12px; border: 1px solid var(--line); border-radius: 8px; }
+  #graph:empty { display: none; }
+  #graph svg { display: block; font: 12px var(--mono); }
+  .edge { fill: none; stroke: var(--edge); stroke-width: 1.5; }
+  .edge.result { stroke: var(--accent); stroke-width: 2.5; }
+  .edge.hover { stroke-width: 4; }
+  .hit { fill: none; stroke: transparent; stroke-width: 24; cursor: pointer; outline: none; }
+  .hit:focus-visible + .edge, .node:focus-visible rect { outline: 2px solid var(--accent); }
+  .edge-labels { pointer-events: none; }
+  .edge-label rect { fill: var(--bg); stroke: var(--line); }
+  .edge-label text { fill: var(--muted); font-size: 11px; }
+  .edge-label.result text { fill: var(--fg); font-weight: 600; }
+  .node { cursor: pointer; outline: none; }
+  .node rect { fill: var(--chip); stroke: var(--line); }
+  .node text { fill: var(--fg); }
+  .node.root rect { fill: var(--bg); stroke: var(--muted); stroke-dasharray: 3 2; }
+  .node.root text { fill: var(--muted); font-weight: 600; }
+  .node.result rect { fill: var(--accent); stroke: var(--accent); }
+  .node.result text { fill: var(--accent-fg); }
+  .node.result text.badge { fill: var(--muted); font: 600 11px system-ui, sans-serif; }
+  .node.hover rect { stroke: var(--fg); stroke-width: 2; }
+  .legend { color: var(--muted); font-size: .85rem; margin: 6px 0 0; }
+  .legend i { display: inline-block; width: 22px; height: 0; vertical-align: middle; margin: 0 4px 0 0; }
+  .legend i.thin { border-top: 1.5px solid var(--edge); }
+  .legend i.thick { border-top: 2.5px solid var(--accent); }
+  #tip { position: fixed; z-index: 10; max-width: 360px; padding: 8px 10px; border: 1px solid var(--line);
+         border-radius: 8px; background: var(--tip-bg); box-shadow: var(--shadow); font-size: .85rem;
+         pointer-events: none; color: var(--muted); }
+  #tip strong { color: var(--fg); }
+  #tip .tip-code { font-family: var(--mono); color: var(--fg); margin-top: 4px; }
+  #tip .tip-title { color: var(--fg); }
+  footer { margin-top: 32px; color: var(--muted); font-size: .85rem; }
+  a { color: var(--accent); }
+  @media (max-width: 640px) {
+    th:nth-child(3), td:nth-child(3), th:nth-child(5), td:nth-child(5) { display: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>image2vienna <small>trade mark image → Vienna codes, in your browser</small></h1>
+  <p class="lead">Pick an example or upload a logo. A vision model writes an inventory of its
+    figurative elements, an embedding model scores that text against the Vienna Classification,
+    and the results are drawn as paths through the hierarchy. Nothing leaves this tab.</p>
+
+  <div class="panes">
+    <div>
+      <label id="drop" for="file">
+        <img id="preview" alt="" hidden>
+        <span id="drop-text">Drop an image here, click to choose one, or paste it</span>
+        <input id="file" type="file" accept="image/*">
+      </label>
+      <h2>Examples</h2>
+      <div id="gallery"></div>
+    </div>
+    <div>
+      <h2>Description of the figurative elements</h2>
+      <textarea id="text" placeholder="Pick an example (its description was written by Qwen2.5-VL 7B), or upload an image and click Describe to let the in-browser model write one. You can edit it or type your own." spellcheck="false"></textarea>
+      <p id="desc-note" class="note"></p>
+      <div class="controls">
+        <button id="describe" class="secondary" type="button" disabled>Describe (in-browser model)</button>
+        <label>Level <select id="level"></select></label>
+        <label>Top <input id="topk" type="number" min="1" max="50" value="8"></label>
+        <label><input id="nocolours" type="checkbox"> No colours <small>(mask category 29)</small></label>
+        <label><input id="principal" type="checkbox"> Principal sections only</label>
+        <button id="run" class="primary" type="button">Classify</button>
+      </div>
+      <div id="status" class="status">Loading…</div>
+    </div>
+  </div>
+
+  <div id="graph"></div>
+  <p id="legend" class="legend" hidden>Each result's path, merged into one tree: Vienna › category › division › section.
+    <i class="thin"></i>similarity of that entry to the description &nbsp; <i class="thick"></i>edge into a result, labelled with its score.
+    Hover or focus an edge or a node for the entry's title. "A" marks an auxiliary section.</p>
+  <div id="results"></div>
+  <div id="meta"></div>
+  <div id="tip" hidden></div>
+
+  <footer>
+    Vectors: one per Vienna entry, embedded from its full path (category › division › section).
+    Scoring: cosine similarity, beam descent, distinct branches; <code>auto</code> level stops where the
+    evidence stops. Classification by <a href="https://www.wipo.int/web/classification-vienna/">WIPO</a>.
+    Code, method and evaluation: <a href="https://github.com/Jaimenms/image2vienna">github.com/Jaimenms/image2vienna</a>.
+  </footer>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

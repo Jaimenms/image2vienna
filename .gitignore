@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+# downloaded WIPO files, EUIPO/L3D images and built indexes live in the cache home, never in git
+data/
+.ipynb_checkpoints/
+space/
+hf/
+
