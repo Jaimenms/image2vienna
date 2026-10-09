@@ -71,6 +71,7 @@ def test_export_layout(mini_home, tmp_path):
     assert (out / entry["vectors"]).stat().st_size == rows * 4 + rows * 64
     readme = (out / "README.md").read_text()
     assert "sdk: static" in readme
+    assert "  - Qwen/Qwen2.5-VL-7B-Instruct\n" in readme and "  - test/model\n" in readme
     short = next(line for line in readme.splitlines() if line.startswith("short_description:"))
     assert len(short.split(":", 1)[1].strip()) <= 60  # the Hub rejects longer ones
 

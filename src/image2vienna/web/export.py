@@ -27,7 +27,14 @@ from pathlib import Path
 import numpy as np
 
 from .. import __version__ as package_version
-from ..config import DESCRIBER_PROMPTS, HEAVY_DESCRIBER, LEVELS, LIGHT_DESCRIBER, home
+from ..config import (
+    DESCRIBER_HUB_IDS,
+    DESCRIBER_PROMPTS,
+    HEAVY_DESCRIBER,
+    LEVELS,
+    LIGHT_DESCRIBER,
+    home,
+)
 from ..describe.prompts import PROMPTS
 from ..embeddings.st import prefixes_for
 from ..index import ViennaIndex, available_indexes, scheme_table_path
@@ -241,7 +248,13 @@ def export_web_demo(
         examples_note = "Example images: " + "; ".join(sources) + "."
     (out / "package.json").write_text(json.dumps({"type": "module", "private": True}) + "\n")
     (out / ".gitattributes").write_text("*.bin filter=lfs diff=lfs merge=lfs -text\n")
-    models = [web_model, *([vision_model] if vision_model else [])]
+    # the models the Space relies on: the embedder, the light model it runs, and the
+    # heavy model whose descriptions of the examples it ships
+    models = [
+        web_model,
+        *([vision_model] if vision_model else []),
+        DESCRIBER_HUB_IDS[HEAVY_DESCRIBER],
+    ]
     (out / "README.md").write_text(
         SPACE_README.format(
             models="\n".join(f"  - {m}" for m in models),

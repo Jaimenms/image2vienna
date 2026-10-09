@@ -18,7 +18,11 @@ def test_export_and_handler_roundtrip(mini_home, tmp_path, monkeypatch):
     assert cfg == {"edition": "10", "lang": "EN", "model": "hash:64", "notes": False}
     card = (repo / "README.md").read_text()
     assert "pipeline_tag: text-classification" in card and "| `exclude_codes` |" in card
-    assert "base_model:\n  - 64\n" in card  # hash:64 -> "64", a real model gives its Hub id
+    # hash:64 -> "64"; a real embedder gives its Hub id. The two vision models follow.
+    assert (
+        "base_model:\n  - 64\n  - Qwen/Qwen2.5-VL-7B-Instruct\n"
+        "  - HuggingFaceTB/SmolVLM-256M-Instruct\nbase_model_relation: merge\n"
+    ) in card
 
     monkeypatch.syspath_prepend(str(repo))
     monkeypatch.delenv("IMAGE2VIENNA_DESCRIBER", raising=False)

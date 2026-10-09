@@ -14,6 +14,9 @@ All notable changes to this project are documented here. The format follows
   default and offers the precomputed heavy one; the light model is measured on the
   300 eval cases (`PERFORMANCE.md`).
 
+- The model card lists the embedder and both vision models as base models
+  (`base_model_relation: merge`, as text2ipc does with its reranker) so the Hub's
+  model tree shows the three; the Space README lists them too.
 - Hub publication: `i2vienna hf-export` assembles a model repository (Parquet tables,
   vendored package, Inference Endpoints `handler.py` for descriptions, model card) and
   `i2vienna download` fetches it; `scripts/publish_hf.sh` and `scripts/hf_tag.sh`.

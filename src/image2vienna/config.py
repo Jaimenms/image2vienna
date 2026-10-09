@@ -38,6 +38,12 @@ DEFAULT_DESCRIBER = HEAVY_DESCRIBER
 #: Prompt each model follows best (docs/evals.md): the long ``inventory`` prompt makes the
 #: light model answer with one word or loop; the short ``terse`` one gets sentences out of it.
 DESCRIBER_PROMPTS = {"heavy": "inventory", "light": "terse"}
+#: Hub ids of the vision models, for model cards (Ollama serves a quantised build of
+#: the first; the second is loaded from the Hub as is).
+DESCRIBER_HUB_IDS = {
+    HEAVY_DESCRIBER: "Qwen/Qwen2.5-VL-7B-Instruct",
+    LIGHT_DESCRIBER: "HuggingFaceTB/SmolVLM-256M-Instruct",
+}
 
 #: Hugging Face model repository holding the published English index.
 DEFAULT_HF_REPO = "jaimenms/image2vienna-en"
