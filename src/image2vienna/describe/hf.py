@@ -12,6 +12,7 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
+from ..textnorm import clean_description
 from .base import read_image
 from .prompts import DEFAULT_PROMPT
 
@@ -66,4 +67,5 @@ class HfDescriber:
                 **inputs, max_new_tokens=self._max_new_tokens, do_sample=False
             )
         new_tokens = out[:, inputs["input_ids"].shape[1] :]
-        return self._processor.batch_decode(new_tokens, skip_special_tokens=True)[0].strip()
+        decoded = self._processor.batch_decode(new_tokens, skip_special_tokens=True)[0]
+        return clean_description(decoded)

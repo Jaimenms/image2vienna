@@ -32,10 +32,13 @@ model changing its mind):
   package runs the same model through transformers (`hf:` describer backend,
   `--describer light`) to write the example descriptions shown by default, so what
   the gallery shows is what the browser produces (the ONNX weights can word it
-  slightly differently). It gets the short `terse` prompt: under the long
-  `inventory` prompt it answers with one word ("Yellow.") or loops, and a repetition
-  penalty makes it invent elements; `terse` yields short, plausible sentences
-  (`docs/evals.md`, 2026-10-09 evening).
+  slightly differently). It gets its own plain prompt (`light`: "Describe this
+  image in detail. Name every object, ..."): under the long `inventory` prompt it
+  answers with one word ("Yellow.") or loops, the `terse` one makes it echo "trade"
+  from "trade mark image" and loop on one example, and a repetition penalty makes it
+  invent elements; the plain request yields concrete sentences (`docs/evals.md`,
+  2026-10-09 evening). Repeated sentences are dropped from any model's output
+  (`textnorm.clean_description`, mirrored in the worker).
 - **Heavy** is Qwen2.5-VL 7B through Ollama, the package's default and the model the
   evaluation measures. It does not run in a browser; its descriptions are precomputed
   for the examples (`scripts/make_demo_examples.py` caches both in

@@ -280,9 +280,18 @@ per image on the M5 Pro). Prompts tried on five demo images:
 | a light-specific inventory prompt | echoes the prompt or names a word |
 | any prompt + repetition penalty 1.3 | invents elements (dogs, cats, letters) |
 
-`terse` is the light model's prompt from here on (`config.DESCRIBER_PROMPTS`); the
-demo examples carry its `terse` description and the heavy model's `inventory` one.
-Hit rates of the light model on the 300 L3D cases follow in `PERFORMANCE.md`.
+A second round on the nine demo images, after `terse` looped on one of them and
+echoed "trade" from "trade mark image": replacing the phrase by "logo", "image" or
+"picture" removes the loop but shrinks the answers to a word or two ("C", "The
+sun."); `no_repeat_ngram_size` removes the loop and keeps "trade"; a plain "Describe
+this image in detail. Name every object, ... Do not name brands and do not
+interpret." gives the longest and most concrete answers (81 words on average
+against 30, no loop, no "trade": the red shield with a gold crown and the letters,
+the dark green bottle in a circle, the boy with a stuffed animal). That prompt is
+`light` and is the light model's from here on (`config.DESCRIBER_PROMPTS`);
+repeated sentences are dropped from every model's output
+(`textnorm.clean_description`). The demo examples carry the light model's `light`
+description and the heavy model's `inventory` one.
 
 Light model on the 300 L3D cases (whole description, titles index):
 

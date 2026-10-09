@@ -58,7 +58,7 @@ WEB_MODELS = {
 #: precomputed and selectable on the page.
 WEB_DEFAULT_VISION = LIGHT_DESCRIBER.partition(":")[2]
 MODES = {"light": LIGHT_DESCRIBER, "heavy": HEAVY_DESCRIBER}
-#: The light model follows the short ``terse`` prompt and degenerates on the long one.
+#: The light model follows its own plain prompt and degenerates on the long one.
 WEB_VISION_PROMPT = PROMPTS[DESCRIBER_PROMPTS["light"]]
 WEB_VISION_DTYPE = {"embed_tokens": "fp16", "vision_encoder": "fp16", "decoder_model_merged": "q4"}
 WEB_VISION_MAX_NEW_TOKENS = 220

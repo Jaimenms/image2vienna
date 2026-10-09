@@ -36,8 +36,9 @@ LIGHT_DESCRIBER = "hf:HuggingFaceTB/SmolVLM-256M-Instruct"
 DESCRIBERS = {"heavy": HEAVY_DESCRIBER, "light": LIGHT_DESCRIBER}
 DEFAULT_DESCRIBER = HEAVY_DESCRIBER
 #: Prompt each model follows best (docs/evals.md): the long ``inventory`` prompt makes the
-#: light model answer with one word or loop; the short ``terse`` one gets sentences out of it.
-DESCRIBER_PROMPTS = {"heavy": "inventory", "light": "terse"}
+#: light model answer with one word, loop or echo the prompt; a plain "describe this
+#: image in detail" (``light``) gets concrete sentences out of it.
+DESCRIBER_PROMPTS = {"heavy": "inventory", "light": "light"}
 #: Hub ids of the vision models, for model cards (Ollama serves a quantised build of
 #: the first; the second is loaded from the Hub as is).
 DESCRIBER_HUB_IDS = {

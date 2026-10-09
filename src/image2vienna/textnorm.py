@@ -35,3 +35,23 @@ def split_sentences(text: str) -> list[str]:
     """Sentences of a description, for per-element scoring; never empty."""
     parts = [p.strip() for p in _SENTENCE_END_RE.split(" ".join(text.split())) if p.strip()]
     return parts or [text.strip()]
+
+
+_FRAGMENT_RE = re.compile(r"[A-Za-z]{3,}")
+_TRAILING_JUNK_RE = re.compile(r"[\s,;:]+[^A-Za-z]*$")
+
+
+def clean_description(text: str) -> str:
+    """Tidy a vision model's output: drop repeated sentences (small models loop) and
+    trailing fragments without words (``,,,,0``), keeping the first occurrences in
+    order. The browser worker applies the same rule (``cleanDescription``)."""
+    seen: set[str] = set()
+    kept: list[str] = []
+    for raw in split_sentences(text):
+        sentence = _TRAILING_JUNK_RE.sub("", raw).strip()
+        key = " ".join(sentence.lower().split())
+        if not sentence or key in seen or not _FRAGMENT_RE.search(sentence):
+            continue
+        seen.add(key)
+        kept.append(sentence)
+    return " ".join(kept).strip()

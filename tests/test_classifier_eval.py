@@ -100,3 +100,21 @@ def test_describer_names_resolve_to_specs(mini_home):
     assert (
         ViennaClassifier("10", model="hash:64", root=mini_home)._describer_spec == HEAVY_DESCRIBER
     )
+
+
+def test_clean_description_drops_loops_and_fragments():
+    from image2vienna.textnorm import clean_description
+
+    looping = (
+        'The word "trade" is written in a bold font. The word "trade" is written in a bold font. '
+        'The word "trade" is written in a bold font. A crown above it. ,,,,0'
+    )
+    assert (
+        clean_description(looping)
+        == 'The word "trade" is written in a bold font. A crown above it.'
+    )
+    assert (
+        clean_description("Three stars. Three stars! A moon.")
+        == "Three stars. Three stars! A moon."
+    )
+    assert clean_description("   ") == ""

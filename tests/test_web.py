@@ -98,7 +98,7 @@ def test_export_copies_examples_without_gold(mini_home, tmp_path):
                 "descriptions": {
                     "ollama:qwen2.5vl:7b": "a star",
                     "ollama:qwen2.5vl:7b|inventory": "One star, yellow.",
-                    "hf:HuggingFaceTB/SmolVLM-256M-Instruct|terse": "A yellow star.",
+                    "hf:HuggingFaceTB/SmolVLM-256M-Instruct|light": "A yellow star.",
                 },
             }
         )
@@ -114,7 +114,7 @@ def test_export_copies_examples_without_gold(mini_home, tmp_path):
             "light": {
                 "text": "A yellow star.",
                 "model": "hf:HuggingFaceTB/SmolVLM-256M-Instruct",
-                "prompt": "terse",
+                "prompt": "light",
             },
             "heavy": {
                 "text": "One star, yellow.",

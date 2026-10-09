@@ -85,7 +85,7 @@ echo "three stars above a crescent moon" | uv run i2vienna classify - --level au
 uv run i2vienna show 1.1.2
 uv run i2vienna l3d --n 300                              # eval cases from L3D (no credentials)
 EUIPO_CLIENT_ID=... EUIPO_CLIENT_SECRET=... uv run i2vienna euipo --n 300
-uv run i2vienna describe-cases evals/l3d_300.jsonl       # vision model once, cached (--describer light --prompt terse for the light one)
+uv run i2vienna describe-cases evals/l3d_300.jsonl       # vision model once, cached (--describer light --prompt light for the light one)
 uv run i2vienna eval evals/l3d_300.jsonl --level section
 uv run python scripts/eval_sweep.py evals/l3d_300.jsonl
 uv run python scripts/make_notebooks.py && uv run jupyter nbconvert --to notebook --execute --inplace notebooks/01_image2vienna.ipynb

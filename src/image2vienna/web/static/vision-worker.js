@@ -93,7 +93,29 @@ async function generate(entry, m) {
   });
   const generated = out.slice(null, [inputs.input_ids.dims.at(-1), null]);
   const [decoded] = processor.batch_decode(generated, { skip_special_tokens: true });
-  return decoded.trim();
+  return cleanDescription(decoded);
+}
+
+const SENTENCE_END_RE = /(?<=[.!?])\s+(?=[A-Z0-9"'(])/;
+
+/**
+ * Tidy the model's output as image2vienna.textnorm.clean_description does: drop
+ * repeated sentences (small models loop) and fragments without a word, keeping the
+ * first occurrences in order.
+ */
+export function cleanDescription(text) {
+  const joined = text.split(/\s+/).filter(Boolean).join(" ");
+  const parts = joined.split(SENTENCE_END_RE).map((p) => p.trim()).filter(Boolean);
+  const seen = new Set();
+  const kept = [];
+  for (const raw of parts.length ? parts : [text.trim()]) {
+    const sentence = raw.replace(/[\s,;:]+[^A-Za-z]*$/, "").trim();
+    const key = sentence.toLowerCase().split(/\s+/).join(" ");
+    if (!sentence || seen.has(key) || !/[A-Za-z]{3,}/.test(sentence)) continue;
+    seen.add(key);
+    kept.push(sentence);
+  }
+  return kept.join(" ").trim();
 }
 
 /** Describe with the loaded model; a failure at run time on WebGPU retries on WASM. */

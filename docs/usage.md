@@ -104,4 +104,4 @@ The same names work in the package: `i2vienna describe logo.png --describer ligh
 runs SmolVLM through transformers (no Ollama needed, about 1.5 s per image on an
 Apple GPU, far shallower); `--describer heavy` (the default) runs Qwen2.5-VL 7B
 through Ollama. Each model has the prompt it follows best (`--prompt` overrides):
-`inventory` for heavy, `terse` for light.
+`inventory` for heavy, `light` (a plain "describe this image in detail") for light.

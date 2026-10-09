@@ -9,10 +9,13 @@ All notable changes to this project are documented here. The format follows
 
 - Two named vision models, `light` (SmolVLM-256M, a new `hf:` describer backend
   through transformers, the model the browser demo runs) and `heavy` (Qwen2.5-VL 7B
-  through Ollama, the default); `--describer light|heavy` on the CLI. The demo page
-  shows which one wrote the description, shows the light one on the examples by
-  default and offers the precomputed heavy one; the light model is measured on the
-  300 eval cases (`PERFORMANCE.md`).
+  through Ollama, the default); `--describer light|heavy` on the CLI and
+  `ViennaClassifier(describer="light")`. The demo page shows which one wrote the
+  description, shows the light one on the examples by default and offers the
+  precomputed heavy one; the light model is measured on the 300 eval cases
+  (`PERFORMANCE.md`). Each model gets the prompt it follows (`inventory`, `light`).
+- `textnorm.clean_description` drops repeated sentences and trailing fragments from
+  a vision model's output (small models loop); the browser worker applies the same.
 
 - The model card lists the embedder and both vision models as base models
   (`base_model_relation: merge`, as text2ipc does with its reranker) so the Hub's

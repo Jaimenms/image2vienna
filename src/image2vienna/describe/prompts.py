@@ -47,4 +47,18 @@ INVENTORY_PROMPT = (
     "interpretation."
 )
 
-PROMPTS = {"default": DEFAULT_PROMPT, "terse": TERSE_PROMPT, "inventory": INVENTORY_PROMPT}
+#: For the light model (SmolVLM-256M). The long prompts make it answer with one word,
+#: loop, or echo the prompt ("trade" from "trade mark image"); a plain request for a
+#: detailed description gets concrete sentences out of it (docs/evals.md).
+LIGHT_PROMPT = (
+    "Describe this image in detail. Name every object, living being, plant, celestial "
+    "body, geometric shape, letter, numeral and colour that is visible, each by its shape "
+    "and appearance. Do not name brands and do not interpret."
+)
+
+PROMPTS = {
+    "default": DEFAULT_PROMPT,
+    "terse": TERSE_PROMPT,
+    "inventory": INVENTORY_PROMPT,
+    "light": LIGHT_PROMPT,
+}

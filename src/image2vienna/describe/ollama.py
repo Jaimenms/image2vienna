@@ -11,6 +11,7 @@ from pathlib import Path
 
 import httpx
 
+from ..textnorm import clean_description
 from .base import read_image
 from .prompts import DEFAULT_PROMPT
 
@@ -51,4 +52,4 @@ class OllamaDescriber:
                 f"and pull the model with `ollama pull {self._model}`"
             ) from e
         resp.raise_for_status()
-        return resp.json()["response"].strip()
+        return clean_description(resp.json()["response"])
