@@ -3,14 +3,12 @@
 ## Requirements
 
 - Python 3.11 to 3.13 and `uv`.
-- A vision model, one of two:
-  - **light**: nothing to install; `--describer light` downloads SmolVLM-256M (about
-    400 MB) on first use and runs it through transformers on CPU or GPU. Any laptop;
-    shallow descriptions (`PERFORMANCE.md`).
-  - **heavy** (the default): [Ollama](https://ollama.com) running locally with
-    `ollama pull qwen2.5vl:7b` (6 GB; a GPU or an Apple M-series with 16 GB of
-    memory; `qwen2.5vl:3b` is 3 GB and faster, not measured).
-- The embedder downloads on first use (`intfloat/multilingual-e5-base`, 1.1 GB).
+- Nothing else to install: the vision model (Florence-2 base, about 460 MB) and the
+  embedder (`intfloat/multilingual-e5-base`, 1.1 GB) download from the Hub on first
+  use and run through transformers on CPU or GPU.
+- Optional: any vision model served by [Ollama](https://ollama.com), with
+  `--describer ollama:<model> --prompt inventory` (an instruction model needs the
+  instruction prompt); the evaluation used `qwen2.5vl:7b` as a 7B reference.
 
 ## Install and build
 
@@ -30,20 +28,19 @@ to `$IMAGE2VIENNA_HOME`, or to `~/.cache/image2vienna` for installed users.
 ## Classify an image
 
 ```bash
-uv run i2vienna classify logo.png                      # sections, top 10, heavy model
-uv run i2vienna classify logo.png --describer light    # SmolVLM-256M, no Ollama
+uv run i2vienna classify logo.png                      # sections, top 10
 uv run i2vienna classify logo.png --level division --top-k 5
 uv run i2vienna classify logo.png --level auto         # as deep as the evidence goes
 uv run i2vienna classify logo.png --padded             # codes as 01.01.02 (EUIPO style)
 uv run i2vienna classify logo.png --json
 ```
 
-The command prints the description the vision model wrote, then the ranked entries
-with the full path each one was embedded with. `--describer ollama:qwen2.5vl:3b`
-switches the vision model, `--prompt inventory|terse|default` the prompt, `--notes`
-the index built with explanatory notes, `--principal-only` hides the auxiliary (A)
-sections, `--exclude 29` masks a category, `--chunking max` scores every entry by
-its best sentence of the description.
+The command prints the caption the vision model wrote, then the ranked entries with
+the full path each one was embedded with. `--describer ollama:qwen2.5vl:7b --prompt
+inventory` switches to a model served by Ollama, `--notes` picks the index built with
+explanatory notes, `--principal-only` hides the auxiliary (A) sections, `--exclude
+29` masks a category, `--chunking max` scores every entry by its best sentence of
+the description.
 
 Stage one and stage two separately:
 
@@ -55,8 +52,7 @@ echo "a lion's head above two crossed swords" | uv run i2vienna classify - --lev
 ```python
 from image2vienna import ViennaClassifier
 
-clf = ViennaClassifier("10")                             # edition 10, English, heavy model
-clf = ViennaClassifier("10", describer="light")          # SmolVLM-256M, no Ollama
+clf = ViennaClassifier("10")                             # edition 10, English
 for m in clf.classify("logo.png", level="section", top_k=5):
     print(m.pretty, m.auxiliary, round(m.score, 3), m.text)
 print(clf.last_description)
@@ -67,7 +63,7 @@ clf.classify_text("three stars above a crescent moon", level="division")
 
 ```bash
 uv run i2vienna l3d --n 300                             # 300 EUIPO marks from L3D
-uv run i2vienna describe-cases evals/l3d_300.jsonl      # vision model, ~3.5 s per image
+uv run i2vienna describe-cases evals/l3d_300.jsonl      # vision model, 0.3 s per image on an Apple GPU
 uv run i2vienna eval evals/l3d_300.jsonl                # hit@k per level
 uv run python scripts/eval_sweep.py evals/l3d_300.jsonl # every configuration
 ```
@@ -92,16 +88,8 @@ cd space/image2vienna && python -m http.server 8765   # open http://localhost:87
 scripts/publish_space.sh                          # needs `uv run hf auth login` once
 ```
 
-The page lets a visitor pick an example or upload an image, embeds the description
-with the ONNX twin of the embedder, ranks with `scorer.js` and draws the results as
-paths through the hierarchy (ADR 0004). Two vision models are named on the page:
-**light** (SmolVLM-256M, runs in the browser on uploads; the examples show its
-description by default, computed offline with the same model) and **heavy**
-(Qwen2.5-VL 7B through Ollama, precomputed for the examples only). `--vision-model ""`
-ships the page without the in-browser model.
-
-The same names work in the package: `i2vienna describe logo.png --describer light`
-runs SmolVLM through transformers (no Ollama needed, about 1.5 s per image on an
-Apple GPU, far shallower); `--describer heavy` (the default) runs Qwen2.5-VL 7B
-through Ollama. Each model has the prompt it follows best (`--prompt` overrides):
-`inventory` for heavy, `light` (a plain "describe this image in detail") for light.
+The page lets a visitor pick an example or upload an image, writes the caption with
+the ONNX twin of Florence-2 in a Web Worker (the examples carry the caption the same
+model wrote offline), embeds it with the ONNX twin of the embedder, ranks with
+`scorer.js` and draws the results as paths through the hierarchy (ADR 0004).
+`--vision-model ""` ships the page without the in-browser model.

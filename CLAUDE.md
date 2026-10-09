@@ -9,12 +9,11 @@ strategy, same conventions, same embedder, applied to images.
 
 1. **A tiny public interface.** `ViennaClassifier.classify(image, level, top_k)`,
    `classify_text(description, ...)`, `describe(image)` and the `i2vienna` CLI.
-2. **Describe, then embed; no training.** A vision-language model writes an inventory
-   of the figurative elements; that prose is embedded and scored against the embedded
-   classification entries with text2ipc's hierarchy heuristics (`docs/methodology.md`,
-   ADR 0001). Two models are named everywhere: **heavy** (Qwen2.5-VL 7B via Ollama,
-   the default, the one the evals measure) and **light** (SmolVLM-256M via
-   transformers, the one the browser demo runs). No fine-tuned classifier.
+2. **Describe, then embed; no training.** A small vision model (Florence-2 base via
+   transformers, the same the browser demo runs) writes a caption of the figurative
+   elements; that prose is embedded and scored against the embedded classification
+   entries with text2ipc's hierarchy heuristics (`docs/methodology.md`, ADR 0001).
+   An Ollama-served model is an option, not the default. No fine-tuned classifier.
 3. **The classification is embedded from its full path.** Category > division >
    section titles, never a title alone (ADR 0002). Notes are an opt-in text style.
 4. **Editions are first class.** WIPO publishes an edition every few years; indexes
@@ -30,7 +29,7 @@ strategy, same conventions, same embedder, applied to images.
 | `src/image2vienna/embeddings/` | Embedder protocol; sentence-transformers, Ollama and hash backends (from text2ipc) |
 | `src/image2vienna/index/` | Parquet index tables, incremental build, discovery |
 | `src/image2vienna/search/` | Hierarchical scoring (text2ipc's scorer on three levels) |
-| `src/image2vienna/describe/` | Describer protocol; Ollama (heavy) and transformers (light) backends, fixed backend for tests, prompts |
+| `src/image2vienna/describe/` | Describer protocol; transformers (Florence-2, default) and Ollama backends, fixed backend for tests, prompts |
 | `src/image2vienna/eval/` | Cases, hit-rate harness, description cache, L3D and EUIPO fetchers |
 | `src/image2vienna/hf/` | Inference Endpoints handler (descriptions in, codes out) and model repository export |
 | `src/image2vienna/web/` | Static Hugging Face Space export; `static/scorer.js` is a port of `search/scorer.py`, `static/vision-worker.js` runs a small vision model in the page |
@@ -46,12 +45,14 @@ strategy, same conventions, same embedder, applied to images.
 
 - Python ≥3.11, managed with `uv`. Never call `pip`; use `uv sync` / `uv run`.
 - Code, identifiers, docstrings and docs are **English**.
-- Tests never download anything, never load a real model and never call Ollama: the
-  `hash:` embedder, the `fixed:` describer and `tests/fixtures/mini_vienna.xml`.
+- Tests never download anything, never load a real model: the `hash:` embedder, the
+  `fixed:` describer and `tests/fixtures/mini_vienna.xml`.
 - Codes are canonical in WIPO's unpadded form (`1.1.2`); `normalize_code` accepts
   EUIPO's `01.01.02`. Auxiliary sections are ordinary section-level targets.
 - The vision model runs once per eval case and the description is cached in the
-  JSONL under the describer spec (and prompt name); scoring experiments reuse it.
+  JSONL under the describer spec (plus `|<prompt>` for a prompt other than the
+  model's default); scoring experiments reuse it. Keys so far: Florence-2 (default
+  caption), `ollama:qwen2.5vl:7b|default` and `|inventory`, SmolVLM runs (rejected).
 - Any new heuristic or prompt needs: a doc section, a parameter with a default, a
   test on the mini scheme, and a sweep run before and after with the numbers
   appended to `docs/evals.md`.
@@ -61,7 +62,7 @@ strategy, same conventions, same embedder, applied to images.
   Repository names are fixed: model `jaimenms/image2vienna-en`, Space
   `jaimenms/image2vienna`; a new index does not get a new repository.
 - Notebooks are generated from `scripts/make_notebooks.py`, stay thin (logic lives in
-  the package) and must execute top-to-bottom with Ollama running and the index built.
+  the package) and must execute top-to-bottom with the index built.
 - `PERFORMANCE.md` is rewritten when the standard eval changes; `docs/evals.md` keeps
   every run in chronological order.
 - The browser demo scores with `src/image2vienna/web/static/scorer.js`, a port of
@@ -75,17 +76,16 @@ strategy, same conventions, same embedder, applied to images.
 
 ```bash
 uv sync --all-extras
-ollama serve && ollama pull qwen2.5vl:7b                 # vision model (6 GB)
 uv run i2vienna build --edition 10                       # scheme table + index (4 s)
 uv run i2vienna build --edition 10 --notes               # text style with notes
-uv run i2vienna describe logo.png                        # stage one only (heavy: Qwen2.5-VL via Ollama)
-uv run i2vienna describe logo.png --describer light      # SmolVLM-256M via transformers, no Ollama
+uv run i2vienna describe logo.png                        # stage one only (Florence-2, downloads once)
+uv run i2vienna describe logo.png --describer ollama:qwen2.5vl:7b --prompt inventory   # an Ollama model instead
 uv run i2vienna classify logo.png --level section        # both stages
 echo "three stars above a crescent moon" | uv run i2vienna classify - --level auto
 uv run i2vienna show 1.1.2
 uv run i2vienna l3d --n 300                              # eval cases from L3D (no credentials)
 EUIPO_CLIENT_ID=... EUIPO_CLIENT_SECRET=... uv run i2vienna euipo --n 300
-uv run i2vienna describe-cases evals/l3d_300.jsonl       # vision model once, cached (--describer light --prompt light for the light one)
+uv run i2vienna describe-cases evals/l3d_300.jsonl       # vision model once, cached
 uv run i2vienna eval evals/l3d_300.jsonl --level section
 uv run python scripts/eval_sweep.py evals/l3d_300.jsonl
 uv run python scripts/make_notebooks.py && uv run jupyter nbconvert --to notebook --execute --inplace notebooks/01_image2vienna.ipynb

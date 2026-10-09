@@ -15,16 +15,20 @@ from pathlib import Path
 from ..describe import PROMPTS, get_describer
 from .cases import load_cases, save_cases
 
+DEFAULT_PROMPT_NAME = "caption"
 
-def description_key(describer: str, prompt: str = "default") -> str:
-    return describer if prompt == "default" else f"{describer}|{prompt}"
+
+def description_key(describer: str, prompt: str = DEFAULT_PROMPT_NAME) -> str:
+    """Cache key of a run: the describer spec, plus ``|<prompt>`` for a prompt other
+    than the model's default (an instruction model's default is ``default``)."""
+    return describer if prompt == DEFAULT_PROMPT_NAME else f"{describer}|{prompt}"
 
 
 def describe_cases(
     path: Path | str,
     describer: str,
     *,
-    prompt: str = "default",
+    prompt: str = DEFAULT_PROMPT_NAME,
     limit: int | None = None,
     force: bool = False,
     progress: Callable[[int, int, float], None] | None = None,

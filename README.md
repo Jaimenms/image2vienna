@@ -1,11 +1,12 @@
 # image2vienna
 
 Map a trade mark image to a ranked list of Vienna Classification codes (the
-International Classification of the Figurative Elements of Marks, WIPO). A
-vision-language model describes what the image shows; that description is embedded
-and scored against the embedded classification entries, each embedded once from its
-full path (category > division > section), with the hierarchy heuristics of
-[text2ipc](https://github.com/Jaimenms/text2ipc). No training.
+International Classification of the Figurative Elements of Marks, WIPO). A small
+vision model (Florence-2 base, 230M) writes a caption naming what the image shows;
+that caption is embedded and scored against the embedded classification entries,
+each embedded once from its full path (category > division > section), with the
+hierarchy heuristics of [text2ipc](https://github.com/Jaimenms/text2ipc). No
+training, no server: it runs on a laptop and in a browser.
 
 Study repository: the package is meant for PyPI, the docs record every decision and
 every measurement along the way. English scheme, edition 10 (in force 2026-01-01).
@@ -19,7 +20,7 @@ runs the embedder, the scoring and a small vision model in your browser (ADR 000
 ```bash
 uv sync --all-extras
 uv run i2vienna download                                 # prebuilt index from huggingface.co/jaimenms/image2vienna-en
-uv run i2vienna classify logo.png --describer light --level section --top-k 5   # no Ollama: SmolVLM-256M, any laptop
+uv run i2vienna classify logo.png --describer light --level section --top-k 5   # no Ollama: Florence-2 base, any laptop
 ollama pull qwen2.5vl:7b                                 # the heavy model, 6 GB, a GPU or an M-series Mac
 uv run i2vienna classify logo.png --level section --top-k 5                     # heavy (default), the measured one
 ```
@@ -99,7 +100,7 @@ category hit@1 26.0%, division 14.0%, below the frequency baseline).
 │   ├── embeddings/               Embedder protocol: sentence-transformers, Ollama, hash (tests)
 │   ├── index/                    Parquet index per (edition, lang, model, text style); incremental build
 │   ├── search/scorer.py          cosine + path/subtree support, beam descent, auto level, distinct branches
-│   ├── describe/                 Describer protocol: Ollama vision backend, fixed backend (tests), prompts
+│   ├── describe/                 Describer protocol: transformers (Florence-2) and Ollama backends, fixed backend (tests), prompts
 │   ├── eval/                     cases, hit-rate harness, description cache, L3D and EUIPO fetchers
 │   ├── hf/                       Inference Endpoints handler and model repository export
 │   └── web/                      static Space export; static/scorer.js is the port of scorer.py, vision-worker.js the in-browser model
@@ -120,12 +121,11 @@ category hit@1 26.0%, division 14.0%, below the frequency baseline).
 ## Browser demo
 
 `i2vienna web-export space/image2vienna` assembles a static Hugging Face Space (ADR
-0004): upload a logo or pick an example, the ONNX twin of the embedder scores the
-description against the hierarchy in the tab, and the results are drawn as paths
-through Vienna › category › division › section. Two vision models are named on the
-page: **light** (SmolVLM-256M, runs in the browser; the examples show its description
-by default) and **heavy** (Qwen2.5-VL 7B through Ollama, the package's model,
-precomputed for the examples). `scripts/publish_space.sh` uploads it.
+0004): upload a logo or pick an example, the ONNX twin of Florence-2 writes the
+caption in a Web Worker (the examples carry the caption the same model wrote
+offline), the ONNX twin of the embedder scores it against the hierarchy in the tab,
+and the results are drawn as paths through Vienna › category › division › section.
+`scripts/publish_space.sh` uploads it.
 
 ## Development
 

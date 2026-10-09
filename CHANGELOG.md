@@ -7,19 +7,21 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- Two named vision models, `light` (SmolVLM-256M, a new `hf:` describer backend
-  through transformers, the model the browser demo runs) and `heavy` (Qwen2.5-VL 7B
-  through Ollama, the default); `--describer light|heavy` on the CLI and
-  `ViennaClassifier(describer="light")`. The demo page shows which one wrote the
-  description, shows the light one on the examples by default and offers the
-  precomputed heavy one; the light model is measured on the 300 eval cases
-  (`PERFORMANCE.md`). Each model gets the prompt it follows (`inventory`, `light`).
+- Florence-2 base (230M) is the vision model, through a new `hf:` describer backend
+  (transformers, CPU or GPU, no server): its captions score within a few points of
+  Qwen2.5-VL 7B on the 300 eval cases (`PERFORMANCE.md`), so the 7B model through
+  Ollama is no longer the default (the `ollama:` backend stays as an option with
+  the instruction prompts). SmolVLM-256M and -500M were tried and rejected
+  (hallucinations, loops). The demo page runs the same model and shows its captions
+  on the examples.
 - `textnorm.clean_description` drops repeated sentences and trailing fragments from
   a vision model's output (small models loop); the browser worker applies the same.
+- The graph tooltip follows the pointer on every move and hides when the pointer
+  leaves the graph or a click lands elsewhere.
 
-- The model card lists the embedder and both vision models as base models
+- The model card lists the embedder and the vision model as base models
   (`base_model_relation: merge`, as text2ipc does with its reranker) so the Hub's
-  model tree shows the three; the Space README lists them too.
+  model tree shows both; the Space README lists them too.
 - Hub publication: `i2vienna hf-export` assembles a model repository (Parquet tables,
   vendored package, Inference Endpoints `handler.py` for descriptions, model card) and
   `i2vienna download` fetches it; `scripts/publish_hf.sh` and `scripts/hf_tag.sh`.
@@ -34,7 +36,8 @@ All notable changes to this project are documented here. The format follows
 - Eval tooling: cases from the L3D dataset without downloading the archive (`l3d`),
   from EUIPO's Trademark Search API with credentials (`euipo`), cached descriptions
   (`describe-cases`), hit@k / recall@k / MRR per level (`eval`, `scripts/eval_sweep.py`).
-- Three prompts for the vision model (`default`, `terse`, `inventory`), selectable with
+- Prompts: `caption` (Florence-2's task, the default) and the instruction prompts
+  `inventory`, `default`, `terse`, `plain` for chat models, selectable with
   `--prompt`; descriptions are cached per describer and prompt.
 - Scoring options measured in the evals: `chunking` (whole description, sentence mean,
   sentence max), `exclude_codes` / `--exclude` (mask a subtree such as the Colours

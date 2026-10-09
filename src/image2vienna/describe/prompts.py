@@ -1,13 +1,20 @@
-"""Prompts for the vision-language model.
+"""Prompts for the vision model.
 
-The wording follows the Vienna general notes: elements are classified by their shape
-regardless of material or purpose (note (a)), parts belong with the whole unless
-expressly listed (note (b)), every distinct element gets its own code (note (e)).
-The model is therefore asked for an inventory of what is visible, in the vocabulary
-the classification uses, and not for an interpretation of the brand.
+The default model, Florence-2, is a captioner driven by a task token: ``CAPTION_PROMPT``
+is its detailed-caption task, and its captions name the objects, letters and colours
+of a logo literally. The instruction prompts below are for chat models (``ollama:``
+backends such as Qwen2.5-VL); their wording follows the Vienna general notes: elements
+are classified by their shape regardless of material or purpose (note (a)), parts
+belong with the whole unless expressly listed (note (b)), every distinct element gets
+its own code (note (e)), so the model is asked for an inventory of what is visible and
+not for an interpretation of the brand.
 """
 
-DEFAULT_PROMPT = (
+#: Florence-2's detailed caption. The default.
+CAPTION_PROMPT = "<MORE_DETAILED_CAPTION>"
+
+#: First instruction prompt for chat models (the evals' "default" key).
+CHAT_PROMPT = (
     "You are describing a trade mark image so that its figurative elements can be "
     "classified. List every visual element you see, in the order of their prominence: "
     "human beings (men, women, children; their clothing, activity or profession), "
@@ -47,18 +54,19 @@ INVENTORY_PROMPT = (
     "interpretation."
 )
 
-#: For the light model (SmolVLM-256M). The long prompts make it answer with one word,
-#: loop, or echo the prompt ("trade" from "trade mark image"); a plain request for a
-#: detailed description gets concrete sentences out of it (docs/evals.md).
-LIGHT_PROMPT = (
+#: A plain request, for small chat models that do not follow the long instructions.
+PLAIN_PROMPT = (
     "Describe this image in detail. Name every object, living being, plant, celestial "
     "body, geometric shape, letter, numeral and colour that is visible, each by its shape "
     "and appearance. Do not name brands and do not interpret."
 )
 
+DEFAULT_PROMPT = CAPTION_PROMPT
+
 PROMPTS = {
-    "default": DEFAULT_PROMPT,
+    "caption": CAPTION_PROMPT,
+    "default": CHAT_PROMPT,
     "terse": TERSE_PROMPT,
     "inventory": INVENTORY_PROMPT,
-    "light": LIGHT_PROMPT,
+    "plain": PLAIN_PROMPT,
 }

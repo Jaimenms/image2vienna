@@ -58,8 +58,9 @@ def test_export_layout(mini_home, tmp_path):
         "section",
     ]
     vision = manifest["vision"]
-    assert vision["light"]["web_model"].startswith("HuggingFaceTB/") and vision["light"]["prompt"]
-    assert vision["heavy"]["spec"].startswith("ollama:")
+    assert vision["web_model"] == "onnx-community/Florence-2-base-ft"
+    assert vision["kind"] == "florence" and vision["prompt"].startswith("<")
+    assert vision["package_model"].startswith("hf:")
     entry = manifest["index"]
     assert entry["edition"] == "10" and entry["lang"] == "EN" and entry["notes"] is False
     scheme = json.loads((out / entry["scheme"]).read_text())
@@ -71,7 +72,7 @@ def test_export_layout(mini_home, tmp_path):
     assert (out / entry["vectors"]).stat().st_size == rows * 4 + rows * 64
     readme = (out / "README.md").read_text()
     assert "sdk: static" in readme
-    assert "  - Qwen/Qwen2.5-VL-7B-Instruct\n" in readme and "  - test/model\n" in readme
+    assert "  - microsoft/Florence-2-base-ft\n" in readme and "  - test/model\n" in readme
     short = next(line for line in readme.splitlines() if line.startswith("short_description:"))
     assert len(short.split(":", 1)[1].strip()) <= 60  # the Hub rejects longer ones
 
@@ -96,9 +97,8 @@ def test_export_copies_examples_without_gold(mini_home, tmp_path):
                 "vienna": ["1.1.2"],
                 "source": "drawn",
                 "descriptions": {
-                    "ollama:qwen2.5vl:7b": "a star",
                     "ollama:qwen2.5vl:7b|inventory": "One star, yellow.",
-                    "hf:HuggingFaceTB/SmolVLM-256M-Instruct|light": "A yellow star.",
+                    "hf:florence-community/Florence-2-base-ft": "A yellow star.",
                 },
             }
         )
@@ -110,18 +110,8 @@ def test_export_copies_examples_without_gold(mini_home, tmp_path):
         "image": "examples/star.png",
         "title": "One star",
         "source": "drawn",
-        "descriptions": {
-            "light": {
-                "text": "A yellow star.",
-                "model": "hf:HuggingFaceTB/SmolVLM-256M-Instruct",
-                "prompt": "light",
-            },
-            "heavy": {
-                "text": "One star, yellow.",
-                "model": "ollama:qwen2.5vl:7b",
-                "prompt": "inventory",
-            },
-        },
+        "description": "A yellow star.",
+        "model": "hf:florence-community/Florence-2-base-ft",
     }
     assert (out / "examples" / "star.png").exists()
     assert "Example images: drawn." in (out / "README.md").read_text()

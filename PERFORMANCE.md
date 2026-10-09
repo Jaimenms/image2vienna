@@ -5,43 +5,43 @@ As of 2026-10-09. Every number here comes from `scripts/eval_sweep.py` over
 
 ## Summary
 
-**It works where a description can work, and a frequency prior wins where it cannot.**
-With the `default` prompt, the whole description as one query and titles-only path
-texts, the pipeline beats the frequency baseline at rank 1 above the section level
-(category hit@1 44.3% against 32.0%, division 33.0% against 26.0%) and finds the right
-division for most marks whose elements are pictorial: 73% of the gold divisions in
-Animals, 54% in Heraldry, 34% in Human beings and 32% in Celestial bodies are among
-the top 10, where the baseline finds none. It does not beat the prior at depth
-(section hit@10 33.0% against 39.7%), because EUIPO's most frequent codes are
-boilerplate the prior answers without looking (letters in a special form of writing,
-quadrilaterals, colours), and because a fifth of the gold sections are EUIPO
-extension codes absent from the edition indexed.
+**A 230M captioner does the job a 7B model did, and the approach works where a
+description can work.** The pipeline's vision model is Florence-2 base (230M
+parameters, through transformers on CPU or GPU, 0.3 s per image on an Apple GPU);
+its literal captions, embedded as one query against titles-only path texts, beat the
+frequency baseline at rank 1 above the section level (category hit@1 37.0% against
+32.0%, division 31.0% against 26.0%) and find the right division for most marks
+whose elements are pictorial. The baseline wins at depth (section hit@10 30.6%
+against 39.7%), because EUIPO's most frequent codes are boilerplate the prior answers
+without looking (letters in a special form of writing, quadrilaterals, colours), and
+because a fifth of the gold sections are EUIPO extension codes absent from the
+edition indexed.
 
 | level | n | hit@1 | hit@3 | hit@10 | recall@10 | baseline hit@1 | baseline hit@10 |
 |---|---|---|---|---|---|---|---|
-| category | 300 | 44.3% | 68.7% | 72.7% | 54.2% | 32.0% | 85.3% |
-| division | 300 | 33.0% | 50.7% | 60.3% | 40.0% | 26.0% | 61.3% |
-| section | 297 | 9.8% | 20.2% | 33.0% | 13.0% | 13.1% | 39.7% |
+| category | 300 | 37.0% | 69.7% | 74.3% | 58.3% | 32.0% | 85.3% |
+| division | 300 | 31.0% | 53.3% | 62.7% | 42.5% | 26.0% | 61.3% |
+| section | 297 | 11.1% | 20.5% | 30.6% | 11.2% | 13.1% | 39.7% |
 
-The candidate-recall ceiling says how much a second stage could add: with 50
-candidates the gold section is present 53.9% of the time, the gold division 75.3%.
-A second prompt (`inventory`, written after reading the misses) lifts the lists
-(division hit@3 55.7% against 50.7%, hit@10 63.7% against 60.3%) and costs 2.6
-points at category hit@1; the section level does not move. Both prompts' rows are
-in the results. The small model the browser demo runs (SmolVLM-256M, "light")
-reaches category hit@1 26.0% and division 14.0%, below the frequency baseline: the
-vision stage is where the quality is, and the heavy model is the package's.
+The study was run with Qwen2.5-VL 7B through Ollama as the vision model (6 GB, a
+GPU or an M-series Mac), under two prompts; the configuration sweep below uses its
+descriptions. Florence-2, tried for the browser demo, scored within a few points of
+it (7 behind at category hit@1, level or ahead from hit@3 on), so the small model
+became the only default and the 7B model an option (`--describer ollama:...`). The
+candidate-recall ceiling says how much a second stage could add: with 50 candidates
+the gold section is present about half the time, the gold division three times in
+four.
 
 ## The pipeline under test
 
 ```
 WIPO full.xml (Vienna 10, EN) ─> path texts "category > division > section" ─> e5-base vectors (index, 1,955 rows)
                                                                                         │
-trade mark image ─> Qwen2.5-VL (Ollama): inventory of the figurative elements ─> query vector ─> scoring ─> ranked codes
+trade mark image ─> Florence-2 base: caption of the figurative elements ─> query vector ─> scoring ─> ranked codes
 ```
 
-The only new part, compared with text2ipc, is the vision stage: `qwen2.5vl:7b`
-writes a few sentences naming the figurative elements, and that prose is the query.
+The only new part, compared with text2ipc, is the vision stage: Florence-2 writes a
+few sentences naming the objects, letters and colours, and that prose is the query.
 The index is the same construction as in text2ipc (one vector per entry, embedded
 from its full path of titles, `intfloat/multilingual-e5-base`), so a description is
 re-scored in milliseconds and a hand-written description is a valid input
@@ -95,8 +95,8 @@ identical descriptions.
 | Classification | Vienna edition 10, English, from WIPO's `full.xml`: 29 categories, 145 divisions, 845 principal and 936 auxiliary sections (1,955 entries) |
 | Entry text | Titles chained top-down; a second index appends the "Including ..." notes |
 | Embedder | `intfloat/multilingual-e5-base`, 768 dimensions; the 1,955 entries embed in 3.7 s |
-| Vision model | `qwen2.5vl:7b` through Ollama, temperature 0, at most 400 output tokens; 5 to 6 s per image on an Apple M5 Pro (the full 1,350-token prompt is re-processed per image) |
-| Prompts | `default` (an enumeration of element kinds to look for); `inventory` (one sentence per element present, how letters are written, colours last, no mention of absent kinds) |
+| Vision model | Florence-2 base (`hf:florence-community/Florence-2-base-ft`, transformers, detailed-caption task, greedy, at most 220 tokens; 0.3 s per image on an Apple M5 Pro). Reference for the sweep: Qwen2.5-VL 7B through Ollama (`qwen2.5vl:7b`, temperature 0, at most 400 tokens, 5 to 6 s per image) |
+| Prompts (Qwen) | `default` (an enumeration of element kinds to look for); `inventory` (one sentence per element present, how letters are written, colours last, no mention of absent kinds) |
 | Scoring | Cosine over the entry vectors; text2ipc's hierarchy heuristics as options: path and subtree support, beam descent, auxiliary-section masking, category masking, sentence-level chunking (`whole`, `mean`, `max`) |
 
 Metrics are computed per level (category, division, section) over the top-10
@@ -119,8 +119,9 @@ recover.
 
 ## Results
 
-All runs use edition 10, `multilingual-e5-base`, top 10, and the descriptions of
-`qwen2.5vl:7b` under the `default` prompt (one vision run, cached). "titles" means the
+The configuration sweep uses edition 10, `multilingual-e5-base`, top 10, and the
+descriptions of the reference model `qwen2.5vl:7b` under its `default` prompt (one
+vision run, cached); Florence-2's own numbers are in "The vision model" below. "titles" means the
 path text of titles only; "+ notes" the index whose texts append the "Including ..."
 notes; "whole" embeds the description as one query, "sentence mean" the mean of its
 sentence vectors, "sentence max" scores every entry by its best sentence; "path 0.3"
@@ -215,7 +216,7 @@ Categories with fewer than 8 gold codes are left out.
 | 7 Constructions, structures for advertis | 9 | 11% | 0% | 22% | 0% |
 | 19 Containers and packing, representation | 9 | 11% | 0% | 33% | 0% |
 
-### Inventory prompt
+### Inventory prompt (Qwen2.5-VL 7B)
 
 The `inventory` prompt (one sentence per element present, how letters are written,
 colours last, no mention of absent kinds of elements) was run over the same 300
@@ -251,37 +252,38 @@ default prompt, and loses 2.6 at category hit@1; the section level is unchanged
 Restricted to the pictorial categories, the inventory prompt reaches section hit@10
 34.3% and recall@10 20.4% against 30.4% and 19.2% with the default prompt.
 
-### Light model (SmolVLM-256M)
+### The vision model: Florence-2 against the 7B reference
 
-The browser demo cannot run Qwen2.5-VL 7B, so it runs `HuggingFaceTB/SmolVLM-256M-Instruct`
-(the "light" model; the package runs it too with `--describer light`). Measured on the
-same 300 images and the same index, the whole description as the query. The light
-model gets the short `terse` prompt, the only one it follows (under the heavy model's
-`inventory` prompt it answers with one word or loops); the heavy model's row is the
-default prompt from the tables above.
+The browser demo needed a model a browser can run, which led to the comparison
+below on the same 300 images and index, the whole description as the query. Three
+small candidates were tried on the nine demo images first (`docs/evals.md`): SmolVLM-256M
+answered with one word, looped or described "the Earth's oceans" on a crown above a
+word, SmolVLM-500M looped on the same image, and Florence-2 base (230M, a captioner
+driven by a task token) named every element literally without looping.
 
-| level | model, prompt | hit@1 | hit@3 | hit@10 | recall@10 | main@1 | MRR |
+| level | model | hit@1 | hit@3 | hit@10 | recall@10 | main@1 | MRR |
 |---|---|---|---|---|---|---|---|
 | category | frequency baseline | 32.0% | 65.7% | 85.3% | 75.0% | - | - |
-| category | heavy (Qwen2.5-VL 7B), default | 44.3% | 68.7% | 72.7% | 54.2% | 26.7% | 0.563 |
-| category | light (SmolVLM-256M), terse | 26.0% | 44.3% | 48.0% | 33.1% | 14.3% | 0.353 |
-| category | light (SmolVLM-256M), inventory | 20.3% | 42.3% | 47.3% | 32.2% | 11.0% | 0.314 |
+| category | Florence-2 base, detailed caption (the default) | 37.0% | 69.7% | 74.3% | 58.3% | 22.0% | 0.521 |
+| category | Qwen2.5-VL 7B, default prompt (reference) | 44.3% | 68.7% | 72.7% | 54.2% | 26.7% | 0.563 |
+| category | SmolVLM-256M, plain prompt (rejected) | 29.7% | 49.3% | 50.3% | 32.6% | 16.7% | 0.394 |
 | division | frequency baseline | 26.0% | 44.3% | 61.3% | 50.0% | - | - |
-| division | heavy (Qwen2.5-VL 7B), default | 33.0% | 50.7% | 60.3% | 40.0% | 18.3% | 0.429 |
-| division | light (SmolVLM-256M), terse | 14.0% | 26.3% | 31.7% | 19.6% | 8.0% | 0.204 |
-| division | light (SmolVLM-256M), inventory | 14.3% | 25.7% | 31.0% | 19.8% | 8.0% | 0.207 |
+| division | Florence-2 base, detailed caption (the default) | 31.0% | 53.3% | 62.7% | 42.5% | 18.0% | 0.424 |
+| division | Qwen2.5-VL 7B, default prompt (reference) | 33.0% | 50.7% | 60.3% | 40.0% | 18.3% | 0.429 |
+| division | SmolVLM-256M, plain prompt (rejected) | 12.7% | 24.3% | 30.0% | 16.9% | 6.0% | 0.188 |
 | section | frequency baseline | 13.1% | 21.5% | 39.7% | 22.8% | - | - |
-| section | heavy (Qwen2.5-VL 7B), default | 9.8% | 20.2% | 33.0% | 13.0% | 3.7% | 0.167 |
-| section | light (SmolVLM-256M), terse | 6.1% | 11.1% | 17.5% | 7.8% | 1.7% | 0.091 |
-| section | light (SmolVLM-256M), inventory | 5.7% | 10.8% | 15.5% | 7.2% | 1.7% | 0.086 |
+| section | Florence-2 base, detailed caption (the default) | 11.1% | 20.5% | 30.6% | 11.2% | 4.7% | 0.169 |
+| section | Qwen2.5-VL 7B, default prompt (reference) | 9.8% | 20.2% | 33.0% | 13.0% | 3.7% | 0.167 |
+| section | SmolVLM-256M, plain prompt (rejected) | 3.7% | 6.4% | 14.1% | 5.9% | 2.0% | 0.063 |
 
-Reading: the light model loses 18 points of category hit@1 and 19 of division hit@1
-to the heavy one, and sits below the frequency baseline at every level. Its
-descriptions are a sentence or two ("The child is holding a teddy bear", "The sun is
-a symbol of warmth and life") and often interpret instead of inventorying. It is a
-demo of the pipeline in a browser, not of the package's quality; the page says which
-model wrote each description, shows the heavy model's precomputed description of the
-examples on request, and leaves the text editable.
+Reading: Florence-2's literal captions ("a red shield with white letters A and B, a
+yellow crown at the top") score close to the 7B model's inventories: 7 points
+behind at category hit@1 and 2 at division hit@1, level or ahead from hit@3 on and
+at section hit@1, at a thirtieth of the size and 0.3 s per image. The vision stage
+needs a model that names what is there without interpreting; size matters less than
+that discipline. SmolVLM-256M, which interprets and loops, is far behind at every
+level. Florence-2 is therefore the package's only default and the model the demo
+page runs; the 7B model stays an option through the `ollama:` backend.
 
 ## Analysis
 
@@ -294,8 +296,8 @@ examples on request, and leaves the text editable.
   prior scores 81% to 100% at the division and the description 28% to 79%. Those
   three categories hold 507 of the 907 gold codes, which is why the overall section
   numbers sit below the baseline while the pictorial ones sit above it.
-- **The read misses explain the section level.** The `default` prompt's
-  enumeration came back as lists of absences ("there are no human beings, animals,
+- **The read misses explain the section level.** The reference model's `default`
+  prompt's enumeration came back as lists of absences ("there are no human beings, animals,
   plants, ..."), and those sentences attract the entries they deny: heads in
   silhouette, empty shields, treble clefs rank in the top 5 of plain word marks.
   Colours are named in every description, and the twelve "Colours > Colours > ..."
@@ -304,8 +306,9 @@ examples on request, and leaves the text editable.
   cost of the 85 colour codes in the gold. The `inventory` prompt removes the
   absence lists and brings the gold into the top 3 and top 10 more often, but not to
   rank 1: what a description can say about a word mark in a plain font does not
-  resemble "Letters presenting a special form of writing" under either prompt. A
-  rule-based colour stage and a prior would address the rest.
+  resemble "Letters presenting a special form of writing" under either prompt, nor
+  in Florence-2's captions. A rule-based colour stage and a prior would address the
+  rest.
 - **The scoring levers of text2ipc change little here.** Appending the notes to the
   texts moves every number by at most 0.6 points. Path support adds 2 points at
   category hit@1 and removes 2 to 7 at hit@10; subtree support changes nothing.
@@ -336,18 +339,18 @@ examples on request, and leaves the text editable.
 2. A frequency prior fused with the similarity: the boilerplate codes (27.5.1, the
    26.4 quadrilaterals, the 29.1 colours) are predictable without looking at the
    image, and the baseline shows how much they weigh.
-3. Prompt iteration on the `inventory` prompt, and a rule-based stage for colours
-   and letter forms, which the description states explicitly.
+3. A rule-based stage for colours and letter forms, which the caption states
+   explicitly; the sweep's configuration study (notes, chunking, supports, masks)
+   should be repeated on Florence-2's captions (`scripts/eval_sweep.py` does it
+   from the cache).
 4. A second stage over the top 50 (a cross-encoder, or the vision model judging
    entry texts against the image), as text2ipc's reranker; the hit@50 ceiling
    bounds the gain.
 5. The browser demo (`i2vienna web-export`, ADR 0004) is published at
-   https://huggingface.co/spaces/jaimenms/image2vienna. It names its two vision
-   models: the light one (SmolVLM-256M) runs in the browser and writes the
-   descriptions the examples show by default; the heavy one (Qwen2.5-VL 7B, the
-   package's) is precomputed for the examples and selectable. The light model's
-   hit rates are in the table above; a stronger model that runs in a browser is the
-   lever for the demo, not for the package.
+   https://huggingface.co/spaces/jaimenms/image2vienna and runs the same vision
+   model as the package. Florence-2's larger variant (`Florence-2-large`, 770M) is
+   worth measuring next: if captions are what the embedding stage wants, more of
+   them may pay.
 6. `notebooks/01_image2vienna.ipynb` (generated by `scripts/make_notebooks.py`,
    executed) walks through the interface on the drawn logos and re-runs the eval
    from the cached descriptions.
@@ -355,11 +358,13 @@ examples on request, and leaves the text editable.
 ## Reproduce
 
 ```bash
-ollama serve && ollama pull qwen2.5vl:7b
 uv sync --all-extras
 uv run i2vienna build --edition 10 && uv run i2vienna build --edition 10 --notes
 uv run i2vienna l3d --n 300
-uv run i2vienna describe-cases evals/l3d_300.jsonl
-uv run i2vienna describe-cases evals/l3d_300.jsonl --prompt inventory
-uv run python scripts/eval_sweep.py evals/l3d_300.jsonl
+uv run i2vienna describe-cases evals/l3d_300.jsonl                      # Florence-2, the default
+uv run i2vienna eval evals/l3d_300.jsonl
+uv run python scripts/eval_sweep.py evals/l3d_300.jsonl                 # every scoring configuration
+# the 7B reference (needs Ollama and `ollama pull qwen2.5vl:7b`):
+uv run i2vienna describe-cases evals/l3d_300.jsonl --describer ollama:qwen2.5vl:7b --prompt default
+uv run python scripts/eval_sweep.py evals/l3d_300.jsonl --describer ollama:qwen2.5vl:7b --prompt default
 ```

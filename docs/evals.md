@@ -303,3 +303,37 @@ Light model on the 300 L3D cases (whole description, titles index):
 
 The light model sits below the frequency baseline at every level; `terse` beats
 `inventory` by 5.7 points at category hit@1 and ties elsewhere.
+
+
+## Light model, third round: Florence-2 replaces SmolVLM (2026-10-09, evening)
+
+The plain prompt fixed SmolVLM-256M's loop on the demo marks but not its
+hallucinations: on the KRONTALER mark (a small crown above a word, 256 px) it
+described "the Earth's surface, oceans and continents". Candidates run on the nine
+demo images with the same settings:
+
+| model, setting | KRONTALER | shield, crown, AB | elsewhere |
+|---|---|---|---|
+| SmolVLM-256M, plain prompt, 2x upscaled image | Earth's oceans (same as before) | correct | sun: "The sun." |
+| SmolVLM-500M, plain prompt | "white rectangular-shaped" looped | correct, white letter A, gold crown | moon, star and colours correct; sun with rays |
+| SmolVLM-500M, plain prompt, `no_repeat_ngram_size` 4 | same loop with synonyms | correct | same |
+| SmolVLM-500M, plain prompt, repetition penalty 1.1 | "a minimalist background with no objects" | shield, letters AB, crown | adds "hope and optimism" to the sun |
+| Florence-2 base ft, `<MORE_DETAILED_CAPTION>` | "the word Kronitaler in black letters, a small black symbol in the middle" | "red, white letters A and B, a yellow crown at the top" | green bottle with a black top in a circle; crescent moon with stars, yellow and blue; sun with yellow lines and light blue water; boy holding a (toy) dog; tree with trunk and branches |
+
+Florence-2 is literal, never loops, and is the smallest and fastest (230M, 0.3 s
+per image on the M5 Pro through transformers, 4 s for the nine). It is the light
+model from here on (`config.LIGHT_DESCRIBER`, the `onnx-community` twin in the
+browser); the hit rates of SmolVLM-256M under its plain prompt are kept for the
+record: category 29.7 / 49.3 / 50.3, division 12.7 / 24.3 / 30.0, section 3.7 /
+6.4 / 14.1 (hit@1 / @3 / @10). Florence-2's follow in `PERFORMANCE.md`.
+
+
+## One model (2026-10-09, evening)
+
+With Florence-2 within a few points of the 7B reference, the user chose to keep one
+model: Florence-2 base is the package default (`hf:` backend) and the demo's model;
+Qwen2.5-VL stays reachable through `ollama:qwen2.5vl:7b` with the instruction
+prompts. Cache keys in `evals/l3d_300.jsonl`: `hf:florence-community/Florence-2-base-ft`
+(the default caption), `ollama:qwen2.5vl:7b|default`, `ollama:qwen2.5vl:7b|inventory`,
+and the SmolVLM runs for the record. The configuration sweep of this log was run on
+the Qwen descriptions; `scripts/eval_sweep.py` repeats it on any cached run.

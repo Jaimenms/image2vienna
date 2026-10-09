@@ -2,11 +2,11 @@
 
 Static Spaces are free; Spaces that run Python are not. So the demo ships the index
 as small static files and does everything client side, as text2ipc's demo does
-(its ADR 0007): ``transformers.js`` embeds the description with the ONNX twin of the
-embedder, ``scorer.js`` (a port of ``search/scorer.py``) ranks the entries, and a
-Web Worker runs a small vision-language model to describe an uploaded image. The
-example images ship with the description the package's vision model wrote for them,
-so the demo shows the real pipeline on those and the in-browser model on uploads.
+(its ADR 0007): ``transformers.js`` runs the ONNX twin of the vision model in a Web
+Worker to caption an uploaded image and the ONNX twin of the embedder to embed the
+caption, and ``scorer.js`` (a port of ``search/scorer.py``) ranks the entries. The
+example images ship with the caption the package's vision model wrote offline, the
+same model, so what the gallery shows is what the browser produces.
 
 Layout written by :func:`export_web_demo`::
 
@@ -14,7 +14,7 @@ Layout written by :func:`export_web_demo`::
     manifest.json                     embedder, vision model, prompt, the index entry
     data/scheme.json                  columns code, level, parent, title, auxiliary
     data/vectors.bin                  per-row float32 scales, then int8 vectors (or float32)
-    examples.json, examples/*.png     sample images and their cached descriptions
+    examples.json, examples/*.png     sample images and their cached captions
     README.md                         Space front matter (sdk: static) and a description
 """
 
@@ -27,15 +27,8 @@ from pathlib import Path
 import numpy as np
 
 from .. import __version__ as package_version
-from ..config import (
-    DESCRIBER_HUB_IDS,
-    DESCRIBER_PROMPTS,
-    HEAVY_DESCRIBER,
-    LEVELS,
-    LIGHT_DESCRIBER,
-    home,
-)
-from ..describe.prompts import PROMPTS
+from ..config import DEFAULT_DESCRIBER, LEVELS, VISION_HUB_ID, home
+from ..describe.prompts import CAPTION_PROMPT
 from ..embeddings.st import prefixes_for
 from ..index import ViennaIndex, available_indexes, scheme_table_path
 from ..index.paths import IndexRef
@@ -50,18 +43,22 @@ WEB_MODELS = {
     "intfloat/multilingual-e5-large": "Xenova/multilingual-e5-large",
 }
 
-#: The "light" vision model: the page runs it in a Web Worker on an uploaded image
-#: (about 400 MB of ONNX weights in these dtypes, WebGPU when the browser has it), and
-#: the package runs the same model through transformers (``LIGHT_DESCRIBER``) to write
-#: the example descriptions the page shows by default. The "heavy" model, Qwen2.5-VL 7B
-#: through Ollama, does not run in a browser; its descriptions of the examples are
-#: precomputed and selectable on the page.
-WEB_DEFAULT_VISION = LIGHT_DESCRIBER.partition(":")[2]
-MODES = {"light": LIGHT_DESCRIBER, "heavy": HEAVY_DESCRIBER}
-#: The light model follows its own plain prompt and degenerates on the long one.
-WEB_VISION_PROMPT = PROMPTS[DESCRIBER_PROMPTS["light"]]
-WEB_VISION_DTYPE = {"embed_tokens": "fp16", "vision_encoder": "fp16", "decoder_model_merged": "q4"}
-WEB_VISION_MAX_NEW_TOKENS = 220
+#: The vision model: Florence-2 base (230M), a captioner. The page runs its ONNX twin
+#: in a Web Worker on an uploaded image (about 250 MB of weights in these dtypes,
+#: WebGPU when the browser has it); the package runs the same model through
+#: transformers (``DEFAULT_DESCRIBER``) to write the example captions the page shows.
+WEB_DEFAULT_VISION = "onnx-community/Florence-2-base-ft"
+WEB_VISION_KIND = "florence"  # or "chat" for an instruction-following model such as SmolVLM
+WEB_VISION_NAME = "Florence-2 base"
+#: The task token of the detailed caption; a chat model would get an instruction instead.
+WEB_VISION_PROMPT = CAPTION_PROMPT
+WEB_VISION_DTYPE = {
+    "embed_tokens": "fp16",
+    "vision_encoder": "fp16",
+    "encoder_model": "q4",
+    "decoder_model_merged": "q4",
+}
+WEB_VISION_MAX_NEW_TOKENS = 120
 
 STATIC_FILES = ("index.html", "app.js", "scorer.js", "vision-worker.js")
 
@@ -84,19 +81,12 @@ models:
 Pick an example image or upload your own and get a ranked list of Vienna
 Classification codes (the figurative elements of marks, WIPO, edition {edition}).
 Nothing is sent to a server: the page downloads the quantised embedder `{web_model}`
-({web_dtype}) and the index once, then embeds the description of the image and scores
-it against the hierarchy locally.
-
-Two vision models write the description, and the page names which one wrote what:
-
-- **Light**: `{vision_model}`, a small model the page runs in a Web Worker on any
-  image you upload. The example images show its description by default, computed
-  offline with the same model, so what you see is what the browser produces.
-- **Heavy**: Qwen2.5-VL 7B through Ollama, the model the package uses and the one the
-  evaluation measures. It does not run in a browser: its descriptions are precomputed
-  for the example images only; for your own images run the package locally.
-
-The description is editable in both cases, and you can write one yourself.
+({web_dtype}) and the index once, then embeds the caption of the image and scores it
+against the hierarchy locally. The caption is written by `{vision_model}` (Florence-2
+base, a 230M-parameter captioner, its detailed-caption task) in a Web Worker on any
+image you upload; the example images show the caption the same model wrote offline,
+so what you see is what the browser produces. The caption is editable, and you can
+write one yourself.
 
 How it works, the evaluation numbers and the Python package are at
 https://github.com/Jaimenms/image2vienna. Scoring: `scorer.js` is a port of
@@ -173,9 +163,8 @@ def export_web_demo(
 
     ``examples`` is a JSONL of demo cases (``scripts/make_demo_examples.py``): each has
     an ``image`` path relative to the JSONL, a ``title``, a ``source`` and cached
-    ``descriptions``; the images are copied under ``examples/`` and one description
-    per image reaches the page (the ``inventory`` one of the package's vision model
-    when present, else the first).
+    ``descriptions``; the images are copied under ``examples/`` and the caption of the
+    package's vision model reaches the page.
     """
     from ..classifier import resolve_built_edition
     from ..embeddings.base import model_slug
@@ -216,19 +205,13 @@ def export_web_demo(
         "index": entry,
         "vision": (
             {
-                "light": {
-                    "web_model": vision_model,
-                    "dtype": WEB_VISION_DTYPE,
-                    "max_new_tokens": WEB_VISION_MAX_NEW_TOKENS,
-                    "prompt": prompt,
-                    "prompt_name": DESCRIBER_PROMPTS["light"],
-                    "name": "SmolVLM-256M",
-                },
-                "heavy": {
-                    "spec": HEAVY_DESCRIBER,
-                    "name": "Qwen2.5-VL 7B",
-                    "prompt_name": DESCRIBER_PROMPTS["heavy"],
-                },
+                "web_model": vision_model,
+                "kind": WEB_VISION_KIND if vision_model == WEB_DEFAULT_VISION else "chat",
+                "dtype": WEB_VISION_DTYPE,
+                "max_new_tokens": WEB_VISION_MAX_NEW_TOKENS,
+                "prompt": prompt,
+                "name": WEB_VISION_NAME,
+                "package_model": DEFAULT_DESCRIBER,
             }
             if vision_model
             else None
@@ -248,13 +231,8 @@ def export_web_demo(
         examples_note = "Example images: " + "; ".join(sources) + "."
     (out / "package.json").write_text(json.dumps({"type": "module", "private": True}) + "\n")
     (out / ".gitattributes").write_text("*.bin filter=lfs diff=lfs merge=lfs -text\n")
-    # the models the Space relies on: the embedder, the light model it runs, and the
-    # heavy model whose descriptions of the examples it ships
-    models = [
-        web_model,
-        *([vision_model] if vision_model else []),
-        DESCRIBER_HUB_IDS[HEAVY_DESCRIBER],
-    ]
+    # the models the Space relies on: the embedder and the vision model (its original)
+    models = [web_model, *([vision_model, VISION_HUB_ID] if vision_model else [])]
     (out / "README.md").write_text(
         SPACE_README.format(
             models="\n".join(f"  - {m}" for m in models),
@@ -270,8 +248,8 @@ def export_web_demo(
 
 def load_examples(path: Path, target_dir: Path) -> list[dict]:
     """Copy each example's image under ``target_dir`` and return what the page shows:
-    image path, title, source and the light and heavy descriptions, each under the
-    prompt its model follows best. Gold codes never reach the page."""
+    image path, title, source and the caption the package's vision model wrote (its
+    default prompt). Gold codes never reach the page."""
     path = Path(path)
     target_dir.mkdir(parents=True, exist_ok=True)
     out = []
@@ -286,23 +264,14 @@ def load_examples(path: Path, target_dir: Path) -> list[dict]:
             raise FileNotFoundError(f"example image {src} is missing")
         shutil.copy2(src, target_dir / src.name)
         descriptions = c.get("descriptions") or {}
-        by_mode = {}
-        for mode, spec in MODES.items():
-            prompt_name = DESCRIBER_PROMPTS[mode]
-            for key in (f"{spec}|{prompt_name}", f"{spec}|inventory", spec):
-                if descriptions.get(key):
-                    by_mode[mode] = {
-                        "text": descriptions[key],
-                        "model": spec,
-                        "prompt": prompt_name,
-                    }
-                    break
+        caption = descriptions.get(DEFAULT_DESCRIBER, "")
         out.append(
             {
                 "image": f"{target_dir.name}/{src.name}",
                 "title": c["title"],
                 "source": c.get("source") or "",
-                "descriptions": by_mode,
+                "description": caption,
+                "model": DEFAULT_DESCRIBER if caption else "",
             }
         )
     return out

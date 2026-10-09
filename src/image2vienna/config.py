@@ -25,26 +25,15 @@ DEFAULT_LANG = "EN"
 #: 512 tokens. Override with ``IMAGE2VIENNA_MODEL`` or the ``model=`` argument.
 DEFAULT_MODEL = "st:intfloat/multilingual-e5-base"
 
-#: Vision-language model that turns the image into a description of its figurative
-#: elements. Two are supported, named after their weight:
-#: - ``heavy``: Qwen2.5-VL 7B served by Ollama (``ollama pull qwen2.5vl:7b``, 6 GB),
-#:   the package default and the model the evals measure;
-#: - ``light``: SmolVLM-256M through transformers, the model the browser demo runs,
-#:   far shallower but needing no Ollama.
-HEAVY_DESCRIBER = "ollama:qwen2.5vl:7b"
-LIGHT_DESCRIBER = "hf:HuggingFaceTB/SmolVLM-256M-Instruct"
-DESCRIBERS = {"heavy": HEAVY_DESCRIBER, "light": LIGHT_DESCRIBER}
-DEFAULT_DESCRIBER = HEAVY_DESCRIBER
-#: Prompt each model follows best (docs/evals.md): the long ``inventory`` prompt makes the
-#: light model answer with one word, loop or echo the prompt; a plain "describe this
-#: image in detail" (``light``) gets concrete sentences out of it.
-DESCRIBER_PROMPTS = {"heavy": "inventory", "light": "light"}
-#: Hub ids of the vision models, for model cards (Ollama serves a quantised build of
-#: the first; the second is loaded from the Hub as is).
-DESCRIBER_HUB_IDS = {
-    HEAVY_DESCRIBER: "Qwen/Qwen2.5-VL-7B-Instruct",
-    LIGHT_DESCRIBER: "HuggingFaceTB/SmolVLM-256M-Instruct",
-}
+#: Vision model that turns the image into a description of its figurative elements:
+#: Florence-2 base (230M), a captioner run through transformers on CPU or GPU, no
+#: server needed. Its literal captions score close to a 7B instruction model's
+#: inventories on the evals (PERFORMANCE.md) at a thirtieth of the size. Override with
+#: ``IMAGE2VIENNA_DESCRIBER`` or the ``describer=`` argument (``ollama:<model>`` runs
+#: any vision model served by Ollama).
+DEFAULT_DESCRIBER = "hf:florence-community/Florence-2-base-ft"
+#: Hub id of the original weights, for model cards.
+VISION_HUB_ID = "microsoft/Florence-2-base-ft"
 
 #: Hugging Face model repository holding the published English index.
 DEFAULT_HF_REPO = "jaimenms/image2vienna-en"
@@ -92,8 +81,3 @@ def default_model() -> str:
 
 def default_describer() -> str:
     return os.environ.get("IMAGE2VIENNA_DESCRIBER", DEFAULT_DESCRIBER)
-
-
-def describer_spec(name: str) -> str:
-    """``light`` / ``heavy`` -> spec; any other value is taken as a spec already."""
-    return DESCRIBERS.get(name, name)

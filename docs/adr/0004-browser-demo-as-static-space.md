@@ -23,27 +23,22 @@ through Ollama, which no browser runs. Options for the page:
 
 ## Decision
 
-All of 2 and 3, with the two vision models named on the page so that nobody mistakes
-one for the other (amended the same day, after the first version showed Qwen's text
-on the examples and SmolVLM's after a click on Describe, which read as the same
-model changing its mind):
-
-- **Light** is SmolVLM-256M. The page runs it in a Web Worker on uploads, and the
-  package runs the same model through transformers (`hf:` describer backend,
-  `--describer light`) to write the example descriptions shown by default, so what
-  the gallery shows is what the browser produces (the ONNX weights can word it
-  slightly differently). It gets its own plain prompt (`light`: "Describe this
-  image in detail. Name every object, ..."): under the long `inventory` prompt it
-  answers with one word ("Yellow.") or loops, the `terse` one makes it echo "trade"
-  from "trade mark image" and loop on one example, and a repetition penalty makes it
-  invent elements; the plain request yields concrete sentences (`docs/evals.md`,
-  2026-10-09 evening). Repeated sentences are dropped from any model's output
-  (`textnorm.clean_description`, mirrored in the worker).
-- **Heavy** is Qwen2.5-VL 7B through Ollama, the package's default and the model the
-  evaluation measures. It does not run in a browser; its descriptions are precomputed
-  for the examples (`scripts/make_demo_examples.py` caches both in
-  `evals/demo_examples.jsonl`) and selectable with a radio button; for an upload the
-  page says to run the package.
+All of 2 and 3, with one vision model: Florence-2 base (230M, a captioner driven by
+task tokens; its detailed-caption task). The page runs its ONNX twin in a Web Worker
+on uploads, and the package runs the same model through transformers (`hf:` backend,
+the default) to write the example descriptions, so what the gallery shows is what the
+browser produces (quantised weights can word it slightly differently). Two earlier
+states the same day are worth recording: the page first showed Qwen2.5-VL 7B's
+descriptions on the examples and SmolVLM-256M's after a click on Describe, which read
+as one model changing its mind; then two named models, "light" and "heavy", with a
+selector, until Florence-2 proved close to the 7B model on the evaluation and the
+7B model was dropped for simplicity (ADR 0001, amendment). SmolVLM-256M and -500M
+were rejected because they answered with one word, looped, echoed "trade" from
+"trade mark image" or described the Earth's oceans on a crown above a word;
+Florence-2 named the word, the symbol, the shield, the crown, the letters, the
+bottle, the moon and the stars literally and never looped (`docs/evals.md`).
+Repeated sentences are dropped from any model's output (`textnorm.clean_description`,
+mirrored in the worker).
 
 `i2vienna web-export <dir>` assembles the Space:
 
@@ -54,11 +49,13 @@ model changing its mind):
   `SchemeTable.text_at` does.
 - **Embedder**: `transformers.js` loads `Xenova/multilingual-e5-base` (q8, 279 MB)
   with the same `query: ` prefix as the Python backend.
-- **Vision**: `vision-worker.js` loads the light model in a Web Worker on first use
-  (`AutoProcessor`, `AutoModelForVision2Seq`, the `inventory` prompt, greedy
-  decoding, at most 220 tokens; fp16 on WebGPU with `shader-f16`, fp32 on WebGPU
-  without it, q8/fp32 on WASM) and streams a token count while it generates. The
-  visitor can edit the result or type a description.
+- **Vision**: `vision-worker.js` loads Florence-2 in a Web Worker on first use
+  (`Florence2ForConditionalGeneration` and its processor; the
+  `<MORE_DETAILED_CAPTION>` task, greedy decoding, at most 120 tokens; fp16 on
+  WebGPU with `shader-f16`, fp32 on WebGPU without it, q8/fp32 on WASM) and
+  streams a token count while it generates; a chat-style model (SmolVLM) stays
+  supported behind `kind: "chat"`. The visitor can edit the result or type a
+  description.
 - **Scoring**: `scorer.js` is a line-by-line port of `search/scorer.py` on three
   levels, with `principalOnly` and `excludeCodes` (the page offers "No colours" and
   "Principal sections only"). `tests/test_web.py` exports the mini scheme with
@@ -75,10 +72,11 @@ model changing its mind):
 - The scorer exists twice; a change to `scorer.py` is not done until `scorer.js`
   matches and the parity test covers the new behaviour (the text2ipc rule).
 - A first visit downloads about 280 MB (embedder, index, page); an upload adds about
-  400 MB for the vision model, cached by the browser afterwards. On a machine
-  without WebGPU the vision model runs on WASM and takes a minute per image.
+  250 MB for the vision model, cached by the browser afterwards. On a machine
+  without WebGPU the vision model runs on WASM and takes some seconds per image.
 - What the Space publishes is derived data and public images only: WIPO's titles,
   quantised vectors, four drawn logos and six EUIPO marks from L3D (CC BY 4.0) with
   their cached descriptions. Gold codes never reach the page, as in text2ipc's demo.
-- The light model's descriptions are not the package's; the page names the model
-  next to the text box, and `PERFORMANCE.md` measures both so the gap is a number.
+- The page's descriptions are the package's: the same model, through transformers
+  offline and through ONNX in the browser; the note next to the text box says which
+  run wrote the text.

@@ -108,6 +108,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cases")
     ap.add_argument("--describer", default=default_describer())
+    ap.add_argument("--prompt", default="caption", help="prompt name of the cached run")
     ap.add_argument("--labels", default="data/l3d/labels.json")
     ap.add_argument("--top-k", type=int, default=10)
     args = ap.parse_args()
@@ -115,21 +116,20 @@ def main():
     all_cases = load_cases(args.cases)
     W = Weights
     configs = [
-        # name, prompt, notes, weights, principal_only, chunking, exclude
-        ("titles, whole description", "default", False, W(), False, "whole", ()),
-        ("titles + notes, whole", "default", True, W(), False, "whole", ()),
-        ("titles, sentence mean", "default", False, W(), False, "mean", ()),
-        ("titles, sentence max", "default", False, W(), False, "max", ()),
-        ("titles + notes, sentence max", "default", True, W(), False, "max", ()),
-        ("titles, whole, path 0.3", "default", False, W(0.7, 0.3), False, "whole", ()),
-        ("titles, whole, subtree 0.3", "default", False, W(0.7, 0.0, 0.3), False, "whole", ()),
-        ("titles, sentence max, path 0.3", "default", False, W(0.7, 0.3), False, "max", ()),
-        ("titles, whole, principal only", "default", False, W(), True, "whole", ()),
-        ("titles, whole, no colours (29)", "default", False, W(), False, "whole", ("29",)),
-        ("titles, sentence max, no colours (29)", "default", False, W(), False, "max", ("29",)),
+        # name, notes, weights, principal_only, chunking, exclude
+        ("titles, whole description", False, W(), False, "whole", ()),
+        ("titles + notes, whole", True, W(), False, "whole", ()),
+        ("titles, sentence mean", False, W(), False, "mean", ()),
+        ("titles, sentence max", False, W(), False, "max", ()),
+        ("titles + notes, sentence max", True, W(), False, "max", ()),
+        ("titles, whole, path 0.3", False, W(0.7, 0.3), False, "whole", ()),
+        ("titles, whole, subtree 0.3", False, W(0.7, 0.0, 0.3), False, "whole", ()),
+        ("titles, sentence max, path 0.3", False, W(0.7, 0.3), False, "max", ()),
+        ("titles, whole, principal only", False, W(), True, "whole", ()),
+        ("titles, whole, no colours (29)", False, W(), False, "whole", ("29",)),
+        ("titles, sentence max, no colours (29)", False, W(), False, "max", ("29",)),
         (
             "titles, whole, pictorial only (no 26-29)",
-            "default",
             False,
             W(),
             False,
@@ -138,32 +138,17 @@ def main():
         ),
         (
             "titles, sentence mean, pictorial only (no 26-29)",
-            "default",
             False,
             W(),
             False,
             "mean",
             ("26", "27", "28", "29"),
         ),
-        ("titles, inventory prompt, whole", "inventory", False, W(), False, "whole", ()),
-        ("titles, inventory prompt, sentence mean", "inventory", False, W(), False, "mean", ()),
-        ("titles, inventory prompt, sentence max", "inventory", False, W(), False, "max", ()),
-        (
-            "titles, inventory prompt, pictorial only (no 26-29)",
-            "inventory",
-            False,
-            W(),
-            False,
-            "whole",
-            ("26", "27", "28", "29"),
-        ),
-        ("titles, terse prompt, whole", "terse", False, W(), False, "whole", ()),
-        ("titles, terse prompt, sentence max", "terse", False, W(), False, "max", ()),
     ]
     results = []
     clfs = {}
-    for name, prompt, notes, weights, principal, chunking, exclude in configs:
-        key = description_key(args.describer, prompt)
+    key = description_key(args.describer, args.prompt)
+    for name, notes, weights, principal, chunking, exclude in configs:
         cases = [c for c in all_cases if key in c.descriptions]
         if exclude:
             cases = exclude_gold(cases, exclude)
@@ -197,7 +182,6 @@ def main():
     # Candidate recall ceiling: how often the gold is anywhere in a long first-stage
     # list. The gap between hit@1 and hit@50 is what a second stage (cross-encoder or
     # LLM judge, as in text2ipc) could recover; the rest needs a better description.
-    key = description_key(args.describer, "default")
     cases = [c for c in all_cases if key in c.descriptions]
     if cases:
         clf = clfs.get(False) or ViennaClassifier("10")

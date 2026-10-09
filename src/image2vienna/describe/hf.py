@@ -1,10 +1,12 @@
-"""transformers backend: small vision-language models from the Hub, run locally.
+"""transformers backend: vision models from the Hub, run locally on CPU or GPU.
 
-The "light" model of the browser demo (``HuggingFaceTB/SmolVLM-256M-Instruct``) is
-served this way so that the example descriptions shipped with the demo are written
-by the same model the page runs, and so that users without Ollama can still describe
-images, at a fraction of Qwen2.5-VL's quality (``PERFORMANCE.md``). Any model that
-``AutoModelForImageTextToText`` loads and whose processor has a chat template works.
+The default model, Florence-2 base (``florence-community/Florence-2-base-ft``), is
+served this way; the browser demo runs its ONNX twin, so the example descriptions
+shipped with the demo come from the same model. Two kinds of model are handled:
+captioners driven by a task token (Florence-2: the prompt is the token, e.g.
+``<MORE_DETAILED_CAPTION>``, and the whole output is the answer) and chat models
+(SmolVLM and the like: the prompt goes through the chat template and the answer
+follows the prompt tokens). Any model that ``AutoModelForImageTextToText`` loads works.
 """
 
 from __future__ import annotations
@@ -47,6 +49,9 @@ class HfDescriber:
         self._model = AutoModelForImageTextToText.from_pretrained(model, dtype=torch.float32)
         self._model.to(self._device).eval()
         self._max_new_tokens = max_new_tokens
+        # a captioner (no chat template) answers a task token with a whole sequence; a
+        # chat model continues the prompt
+        self._task_driven = getattr(self._processor, "chat_template", None) is None
 
     @property
     def name(self) -> str:
@@ -57,6 +62,15 @@ class HfDescriber:
         from PIL import Image
 
         pil = Image.open(io.BytesIO(read_image(image))).convert("RGB")
+        if self._task_driven:
+            task = prompt if prompt.startswith("<") else "<MORE_DETAILED_CAPTION>"
+            inputs = self._processor(text=task, images=pil, return_tensors="pt").to(self._device)
+            with torch.no_grad():
+                out = self._model.generate(
+                    **inputs, max_new_tokens=self._max_new_tokens, do_sample=False, num_beams=1
+                )
+            decoded = self._processor.batch_decode(out, skip_special_tokens=True)[0]
+            return clean_description(decoded)
         messages = [
             {"role": "user", "content": [{"type": "image"}, {"type": "text", "text": prompt}]}
         ]

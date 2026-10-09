@@ -3,9 +3,9 @@
 uv run python scripts/make_notebooks.py
 uv run jupyter nbconvert --to notebook --execute --inplace notebooks/01_image2vienna.ipynb
 
-Logic lives in the package; the notebook only calls it. Executing it needs Ollama
-running with ``qwen2.5vl:7b`` pulled, the edition 10 index built, and, for the last
-section, ``evals/l3d_300.jsonl`` with cached descriptions.
+Logic lives in the package; the notebook only calls it. Executing it needs the
+edition 10 index built and, for the last section, ``evals/l3d_300.jsonl`` with cached
+descriptions; the vision model downloads from the Hub on first use.
 """
 
 from __future__ import annotations
@@ -36,11 +36,10 @@ evaluates it on 300 EUIPO marks with the examiners' codes.
 Prerequisites, run once from the repository root:
 
 ```bash
-ollama serve && ollama pull qwen2.5vl:7b          # the vision model, 6 GB
 uv sync --all-extras
 uv run i2vienna build --edition 10                 # WIPO XML -> scheme table + index
 uv run i2vienna l3d --n 300                        # eval cases (section 7)
-uv run i2vienna describe-cases evals/l3d_300.jsonl --prompt inventory
+uv run i2vienna describe-cases evals/l3d_300.jsonl # the vision model over the cases, cached
 ```
 
 Everything below reads the Parquet tables under `data/` (or `$IMAGE2VIENNA_HOME`).
@@ -54,7 +53,6 @@ from IPython.display import Image as Show
 from IPython.display import display
 
 from image2vienna import ViennaClassifier
-from image2vienna.describe import INVENTORY_PROMPT
 
 ROOT = Path.cwd() if (Path.cwd() / "evals").is_dir() else Path.cwd().parent
 pd.set_option("display.width", 160)
@@ -80,9 +78,10 @@ def as_frame(matches):
 ## 1. One classifier, one index
 
 A `ViennaClassifier` is bound to an edition, a scheme language, an embedding model
-and a vision model. Loading is lazy: the index (1,955 vectors, 7.7 MB), the embedder
-and the vision model load on first use. Every entry was embedded from its full path
-of titles, never from its own title alone.
+and a vision model (Florence-2 base by default, 230M parameters, through
+transformers on CPU or GPU). Loading is lazy: the index (1,955 vectors, 7.7 MB), the
+embedder and the vision model load on first use. Every entry was embedded from its
+full path of titles, never from its own title alone.
 """),
         code("""
 clf = ViennaClassifier("10")
@@ -143,14 +142,14 @@ display(Show(filename=str(stars_moon), width=200), Show(filename=str(shield), wi
         md("""
 ## 3. Stage one: what the vision model sees
 
-`describe` sends the image to Qwen2.5-VL with the `inventory` prompt: one sentence
-per element that is present, how letters are written, colours last, and no mention
-of absent kinds of elements. The prose is the query of the next stage.
+`describe` runs Florence-2's detailed-caption task on the image: a few sentences
+naming the objects, letters and colours literally (repeated sentences, which small
+models produce, are dropped). The prose is the query of the next stage.
 """),
         code("""
 for image in (stars_moon, shield):
     print(image.name)
-    print(clf.describe(image, prompt=INVENTORY_PROMPT))
+    print(clf.describe(image))
     print()
 """),
         md("""
@@ -163,13 +162,13 @@ before a code marks an auxiliary section, which offices code without the letter
 better-ranked one are dropped, so each row is a distinct branch.
 """),
         code("""
-as_frame(clf.classify(stars_moon, level="section", top_k=5, prompt=INVENTORY_PROMPT))
+as_frame(clf.classify(stars_moon, level="section", top_k=5))
 """),
         code("""
-as_frame(clf.classify(shield, level="division", top_k=5, prompt=INVENTORY_PROMPT))
+as_frame(clf.classify(shield, level="division", top_k=5))
 """),
         code("""
-as_frame(clf.classify(shield, level="auto", top_k=5, prompt=INVENTORY_PROMPT))
+as_frame(clf.classify(shield, level="auto", top_k=5))
 """),
         md("""
 ## 5. A description as the query
@@ -212,10 +211,12 @@ for code_ in ("2.1.4", "1.1.4"):
 
 `evals/l3d_300.jsonl` holds 300 figurative EU trade marks from the Large Labelled
 Logo Dataset (EUIPO open data, 1996 to 2020) with the codes EUIPO examiners
-assigned, and the descriptions the vision model wrote under each prompt. The eval
-re-scores those cached descriptions, so it runs in seconds. A gold code shallower
-than a level does not count at that level; about a fifth of the gold codes are
-EUIPO extension codes that no WIPO edition contains, which caps the section level.
+assigned, and the descriptions written by every vision model tried: Florence-2 (the
+default), Qwen2.5-VL 7B through Ollama (two prompts) and SmolVLM (rejected). The
+eval re-scores those cached descriptions, so it runs in seconds. A gold code
+shallower than a level does not count at that level; about a fifth of the gold codes
+are EUIPO extension codes that no WIPO edition contains, which caps the section
+level.
 """),
         code("""
 from image2vienna.eval import evaluate, load_cases
@@ -240,10 +241,11 @@ percent = {c: "{:.1%}" for c in table.columns if c.startswith(("hit", "recall", 
 table.style.format(percent | {"mrr": "{:.3f}"})
 """),
         md("""
-The frequency baseline (always answer the most frequent codes of the 770k L3D
-labels), the per-category breakdown and every rejected variant are in
-`docs/evals.md`; `scripts/eval_sweep.py` prints them from the same cached
-descriptions.
+Florence-2's captions score within a few points of the 7B model's inventories at a
+thirtieth of the size, which is why it is the only default. The frequency baseline
+(always answer the most frequent codes of the 770k L3D labels), the per-category
+breakdown and every rejected variant are in `PERFORMANCE.md` and `docs/evals.md`;
+`scripts/eval_sweep.py` prints them from the same cached descriptions.
 """),
     ]
     nb = nbf.v4.new_notebook(cells=cells)

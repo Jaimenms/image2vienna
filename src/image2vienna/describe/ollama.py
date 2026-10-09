@@ -1,7 +1,8 @@
 """Ollama backend: any vision model that answers ``POST /api/generate`` with images.
 
-Qwen2.5-VL 7B takes about 3.5 s per image on an Apple M-series GPU (``docs/evals.md``);
-``temperature`` is 0 so a description is reproducible for a given model build.
+An instruction model such as Qwen2.5-VL 7B needs an instruction prompt (``inventory``);
+``temperature`` is 0 so a description is reproducible for a given model build. The
+evals of 2026-10-09 used it as the reference 7B model (``docs/evals.md``).
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ import httpx
 
 from ..textnorm import clean_description
 from .base import read_image
-from .prompts import DEFAULT_PROMPT
+from .prompts import INVENTORY_PROMPT
 
 
 class OllamaDescriber:
@@ -36,7 +37,7 @@ class OllamaDescriber:
     def name(self) -> str:
         return f"ollama:{self._model}"
 
-    def describe(self, image: Path | bytes, *, prompt: str = DEFAULT_PROMPT) -> str:
+    def describe(self, image: Path | bytes, *, prompt: str = INVENTORY_PROMPT) -> str:
         payload = {
             "model": self._model,
             "prompt": prompt,

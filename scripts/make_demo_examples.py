@@ -6,10 +6,9 @@ Writes ``evals/demo_images/`` and ``evals/demo_examples.jsonl``.
 
 The EUIPO marks come from ``evals/l3d_300.jsonl`` (L3D, CC BY 4.0): one per pictorial
 category where the package put the office's division among its top 3 on the cached
-description, so the demo shows the pipeline at its typical best. Descriptions under
-the ``inventory`` prompt are taken from the cache or written by the default describer
-(Ollama must be running for the drawn logos). Gold codes are kept in the JSONL for
-the record but never reach the page.
+description, so the demo shows the pipeline at its typical best. The descriptions
+are the vision model's (Florence-2), taken from the cache or written here. Gold codes
+are kept in the JSONL for the record but never reach the page.
 """
 
 from __future__ import annotations
@@ -23,12 +22,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 from image2vienna.classifier import ViennaClassifier
 from image2vienna.config import (
-    DESCRIBER_PROMPTS,
-    HEAVY_DESCRIBER,
-    LIGHT_DESCRIBER,
     default_describer,
 )
-from image2vienna.describe import PROMPTS, get_describer
+from image2vienna.describe import DEFAULT_PROMPT, get_describer
 from image2vienna.eval import load_cases
 from image2vienna.eval.describe import description_key
 from image2vienna.scheme.codes import truncate_code
@@ -125,7 +121,6 @@ def draw_logos() -> list[dict]:
 def pick_euipo(clf: ViennaClassifier) -> list[dict]:
     cases = load_cases(ROOT / "evals" / "l3d_300.jsonl")
     default_key = description_key(default_describer())
-    inventory_key = description_key(default_describer(), "inventory")
     chosen = []
     used = set()
     for cat, label in PICK:
@@ -148,9 +143,7 @@ def pick_euipo(clf: ViennaClassifier) -> list[dict]:
                         "vienna": list(c.vienna),
                         "source": "EUIPO open data via the Large Labelled Logo Dataset (CC BY 4.0)",
                         "descriptions": {
-                            k: v
-                            for k, v in c.descriptions.items()
-                            if k in (default_key, inventory_key)
+                            k: v for k, v in c.descriptions.items() if k == default_key
                         },
                     }
                 )
@@ -169,20 +162,18 @@ def main():
                 cached[d["id"]] = d.get("descriptions", {})
     for ex in examples:
         ex["descriptions"] = {**cached.get(ex["id"], {}), **ex["descriptions"]}
-    # both models the demo names: heavy (Qwen2.5-VL via Ollama) and light (SmolVLM, the
-    # model the page itself runs), each under the prompt it follows best
-    for mode, spec in (("heavy", HEAVY_DESCRIBER), ("light", LIGHT_DESCRIBER)):
-        prompt_name = DESCRIBER_PROMPTS[mode]
-        key = description_key(spec, prompt_name)
-        describer = None
-        for ex in examples:
-            if key in ex["descriptions"]:
-                continue
-            describer = describer or get_describer(spec)
-            ex["descriptions"][key] = describer.describe(
-                IMAGES / Path(ex["image"]).name, prompt=PROMPTS[prompt_name]
-            )
-            print("described", ex["id"], "with", spec, prompt_name)
+    # the package's vision model (Florence-2), the one the page runs too
+    spec = default_describer()
+    key = description_key(spec)
+    describer = None
+    for ex in examples:
+        if key in ex["descriptions"]:
+            continue
+        describer = describer or get_describer(spec)
+        ex["descriptions"][key] = describer.describe(
+            IMAGES / Path(ex["image"]).name, prompt=DEFAULT_PROMPT
+        )
+        print("described", ex["id"], "with", spec)
     with open(TARGET, "w", encoding="utf-8") as fh:
         for ex in examples:
             fh.write(json.dumps(ex, ensure_ascii=False) + "\n")

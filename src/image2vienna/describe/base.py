@@ -5,9 +5,10 @@ the query in text2ipc.
 
 A backend is selected by a spec string ``<backend>:<model>``:
 
-- ``ollama:qwen2.5vl:7b``   any vision model served by Ollama (default, the "heavy" one)
-- ``hf:HuggingFaceTB/SmolVLM-256M-Instruct``  a small model through transformers, run
-                            locally (the "light" one, the same the browser demo runs)
+- ``hf:florence-community/Florence-2-base-ft``  Florence-2 through transformers, run
+                            locally on CPU or GPU (default; the browser demo runs its twin)
+- ``ollama:qwen2.5vl:7b``   any vision model served by Ollama (an instruction model;
+                            give it an instruction prompt such as ``inventory``)
 - ``fixed:<dir>``           for tests and cached runs: reads ``<image stem>.txt`` next
                             to the image or under ``<dir>``, never looks at pixels
 """

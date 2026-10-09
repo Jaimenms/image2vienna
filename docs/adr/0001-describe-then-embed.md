@@ -1,6 +1,6 @@
 # 0001 Describe the image with a vision-language model, then classify the description
 
-Status: accepted, 2026-10-09
+Status: accepted, 2026-10-09; amended the same evening (the model, see the end)
 
 ## Context
 
@@ -42,3 +42,17 @@ files so that scoring experiments never rerun the vision model.
   prompt is therefore part of the measured configuration (`docs/evals.md`).
 - A multimodal embedder stays possible as an `Embedder` backend if a later
   comparison warrants it.
+
+## Amendment, 2026-10-09 evening: a 230M captioner instead of a 7B instruction model
+
+The validation ran with Qwen2.5-VL 7B through Ollama (6 GB, a GPU or an M-series Mac
+with 16 GB, about 5 s per image). For the browser demo a small model was needed, and
+Florence-2 base (230M, a captioner driven by a task token, through transformers on
+CPU or GPU, 0.3 s per image) turned out to score within a few points of the 7B model
+on the same 300 marks (category hit@1 37.0% against 44.3%, hit@3 69.7% against 68.7%;
+division 31.0% against 33.0% and 53.3% against 50.7%; `PERFORMANCE.md`). Its captions
+are literal and never loop, where the small instruction models tried (SmolVLM-256M
+and -500M) hallucinated or looped. Florence-2 is therefore the only default: no
+Ollama, no 6 GB download, one model in the package and in the page. The `ollama:`
+backend stays as an option for any served vision model, with the instruction prompts
+it needs.

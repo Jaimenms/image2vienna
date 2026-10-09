@@ -28,18 +28,19 @@ notes stay out of the text by default; an index built with `--notes` appends the
 
 ## 2. Two stages at query time
 
-**Describe.** A vision-language model (default `qwen2.5vl:7b` through Ollama)
-receives the image and a prompt asking for an inventory of the visible figurative
-elements in the vocabulary of the classification: beings and their attributes,
-animals, plants, celestial bodies, objects, heraldry, geometric figures, letters and
-how they are written, colours; neutral terms, no brand guessing, no interpretation
-(`describe/prompts.py`). The answer is three to six sentences of English prose.
-Three prompts are measured: `default` (the enumeration above), `terse` (one line
-per element), and `inventory` (one sentence per element that is present, how letters
-are written, colours last, and an explicit ban on naming absent kinds of elements,
-after the default was seen to produce lists of absences).
+**Describe.** A vision model writes what the image shows. The default is Florence-2
+base (230M parameters, `hf:` backend through transformers, 0.3 s per image on an
+Apple GPU), a captioner driven by a task token: its detailed caption names the
+objects, letters and colours literally ("a red shield with white letters A and B, a
+yellow crown at the top") and never loops. An instruction model served by Ollama
+(`ollama:` backend) can take its place with an instruction prompt
+(`describe/prompts.py`: `inventory`, one sentence per element present, how letters
+are written, colours last, no absent kinds named; `default`, an enumeration of kinds
+to look for; `terse`); the evaluation ran Qwen2.5-VL 7B that way as a reference and
+measured the two within a few points of each other, which is why the small model is
+the default.
 
-**Embed and score.** The description is embedded as a query (`multilingual-e5-base`,
+**Embed and score.** The caption is embedded as a query (`multilingual-e5-base`,
 the text2ipc default, so the two studies compare) and scored against the entry
 vectors by cosine. The hierarchy heuristics of text2ipc apply unchanged: path
 support, subtree support, beam descent over the three levels, auto level, gap, and
