@@ -82,7 +82,7 @@ category hit@1 26.0%, division 14.0%, below the frequency baseline).
 | [docs/methodology.md](docs/methodology.md) | How it works: scheme texts, the two stages, scoring, evaluation protocol |
 | [docs/evals.md](docs/evals.md) | What it scores: every eval run with its numbers, including rejected variants |
 | [docs/adr/](docs/adr/) | Why it is built this way: describe-then-embed, scheme source and text, eval sources, the browser demo |
-| [CHANGELOG.md](CHANGELOG.md) | What changed in each version |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each version; releases are tags here and on the Hub |
 | [CLAUDE.md](CLAUDE.md) | Conventions for contributors and coding agents |
 
 ## Repository layout

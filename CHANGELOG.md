@@ -1,52 +1,60 @@
 # Changelog
 
 All notable changes to this project are documented here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Releases are tags here
+(`v0.1.0`) and on the Hub repositories `jaimenms/image2vienna-en` (model) and
+`jaimenms/image2vienna` (Space); `-N` suffixes on the Hub mark intermediate uploads.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-09
+
+First release: the text2ipc strategy applied to trade mark images, validated on
+300 EUIPO marks with the examiners' codes.
+
 ### Added
 
-- Florence-2 base (230M) is the vision model, through a new `hf:` describer backend
-  (transformers, CPU or GPU, no server): its captions score within a few points of
-  Qwen2.5-VL 7B on the 300 eval cases (`PERFORMANCE.md`), so the 7B model through
-  Ollama is no longer the default (the `ollama:` backend stays as an option with
-  the instruction prompts). SmolVLM-256M and -500M were tried and rejected
-  (hallucinations, loops). The demo page runs the same model and shows its captions
-  on the examples.
-- `textnorm.clean_description` drops repeated sentences and trailing fragments from
-  a vision model's output (small models loop); the browser worker applies the same.
-- The graph tooltip follows the pointer on every move and hides when the pointer
-  leaves the graph or a click lands elsewhere.
-
-- The model card lists the embedder and the vision model as base models
-  (`base_model_relation: merge`, as text2ipc does with its reranker) so the Hub's
-  model tree shows both; the Space README lists them too.
-- Hub publication: `i2vienna hf-export` assembles a model repository (Parquet tables,
-  vendored package, Inference Endpoints `handler.py` for descriptions, model card) and
-  `i2vienna download` fetches it; `scripts/publish_hf.sh` and `scripts/hf_tag.sh`.
-  Published as `jaimenms/image2vienna-en` (tag v0.1.0) and the demo as the static
-  Space `jaimenms/image2vienna`.
-- `image2vienna` package and `i2vienna` CLI: WIPO Vienna Classification (edition 10,
-  English) parsed from nivilo's `full.xml` into a Parquet scheme table and an
-  embedded index (`build`, `scheme`, `show`, `indexes`, `editions`).
-- Two-stage classifier: Qwen2.5-VL through Ollama describes the figurative elements,
-  `multilingual-e5-base` plus text2ipc's hierarchy heuristics rank the entries
-  (`describe`, `classify`, `classify -` for a text from stdin).
-- Eval tooling: cases from the L3D dataset without downloading the archive (`l3d`),
-  from EUIPO's Trademark Search API with credentials (`euipo`), cached descriptions
-  (`describe-cases`), hit@k / recall@k / MRR per level (`eval`, `scripts/eval_sweep.py`).
-- Prompts: `caption` (Florence-2's task, the default) and the instruction prompts
-  `inventory`, `default`, `terse`, `plain` for chat models, selectable with
-  `--prompt`; descriptions are cached per describer and prompt.
-- Scoring options measured in the evals: `chunking` (whole description, sentence mean,
-  sentence max), `exclude_codes` / `--exclude` (mask a subtree such as the Colours
-  category from candidates and gold), `principal_only`, path and subtree weights.
+- `image2vienna` package and `i2vienna` CLI: WIPO's Vienna Classification (edition
+  10, English) parsed from nivilo's `full.xml` (categories, divisions, principal and
+  auxiliary sections, notes) into a Parquet scheme table and an embedded index of the
+  full path texts, with incremental builds across editions (`build`, `scheme`, `show`,
+  `indexes`, `editions`).
+- Two-stage classifier: a vision model captions the image, `multilingual-e5-base` plus
+  text2ipc's hierarchy heuristics (path and subtree support, beam descent, auto level,
+  distinct branches) rank the entries at the level asked (`describe`, `classify`,
+  `classify -` for a text from stdin; `ViennaClassifier`, `classify_text`).
+- Vision model: Florence-2 base (230M) through a `hf:` describer backend (transformers,
+  CPU or GPU, no server, 0.3 s per image on an Apple GPU). Its captions score within a
+  few points of Qwen2.5-VL 7B on the eval cases (`PERFORMANCE.md`), so it is the only
+  default; the `ollama:` backend runs any served model with the instruction prompts
+  (`inventory`, `default`, `terse`, `plain`). SmolVLM-256M and -500M were tried and
+  rejected (hallucinations, loops). `textnorm.clean_description` drops repeated
+  sentences and trailing fragments from any model's output.
+- Scoring options measured in the evals: `chunking` (whole description, sentence
+  mean, sentence max), `exclude_codes` / `--exclude` (mask a subtree such as the
+  Colours category from candidates and gold), `principal_only`, path and subtree
+  weights, `--notes` (an index whose texts append the "Including ..." notes).
+- Eval tooling: cases from the L3D dataset without downloading its 12 GB archive
+  (`l3d`), from EUIPO's Trademark Search API with credentials (`euipo`), descriptions
+  cached per describer and prompt (`describe-cases`), hit@k / recall@k / main@1 / MRR
+  per level (`eval`, `scripts/eval_sweep.py` with a frequency baseline, a candidate
+  recall ceiling and a per-category breakdown). `evals/l3d_300.jsonl` carries the
+  300 cases with the cached runs of every model tried.
+- `PERFORMANCE.md`: the validation report (dataset, protocol, every configuration,
+  the vision-model comparison, analysis, next steps); `docs/evals.md` keeps the log.
 - Browser demo as a static Hugging Face Space (`i2vienna web-export`,
-  `scripts/publish_space.sh`, ADR 0004): image upload, example gallery with cached
-  Qwen2.5-VL descriptions, SmolVLM-256M in a Web Worker for uploads, e5-base through
-  transformers.js, `scorer.js` port with Node parity tests, results drawn as paths
-  through the hierarchy.
-- `PERFORMANCE.md`: the validation report (dataset, protocol, numbers, analysis).
-- `notebooks/01_image2vienna.ipynb`, generated by `scripts/make_notebooks.py`.
-- Docs: methodology, usage, evals log, ADRs 0001 to 0003.
+  `scripts/publish_space.sh`, ADR 0004): image upload (button, drag and drop, paste),
+  an example strip whose captions were written offline by the same model, Florence-2
+  in a Web Worker for uploads (WebGPU with fp16 fallbacks, WASM otherwise), e5-base
+  through transformers.js, `scorer.js` (a port of the Python scorer with Node parity
+  tests), results drawn as paths through the hierarchy with tooltips.
+- Hub publication: `i2vienna hf-export` assembles a model repository (Parquet tables,
+  vendored package, Inference Endpoints `handler.py` for descriptions, model card
+  listing the embedder and the vision model as base models) and `i2vienna download`
+  fetches it; `scripts/publish_hf.sh`, `scripts/publish_space.sh` and
+  `scripts/hf_tag.sh`. Published as `jaimenms/image2vienna-en` and the Space
+  `jaimenms/image2vienna`.
+- `notebooks/01_image2vienna.ipynb`, generated by `scripts/make_notebooks.py` and
+  executed: drawn logos, both stages, a hand-written description, an entry's path and
+  notes, the eval from cached descriptions.
+- Docs: methodology, usage, evals log, ADRs 0001 to 0004, `CLAUDE.md`.
